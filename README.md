@@ -42,9 +42,4 @@ This prototype uses a simple rule-based approach to detect sarcasm by analyzing:
 - CSS3 with animations
 - JavaScript ES6+
 
-## Future Enhancements
 
-- Integrate ML-based sarcasm detection models
-- Add training data visualization
-- Support multiple languages
-- User feedback mechanism to improve accuracy
