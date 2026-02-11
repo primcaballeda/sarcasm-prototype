@@ -4,9 +4,11 @@ import './SarcasmDetector.css';
 
 const SarcasmDetector = () => {
   const [text, setText] = useState('');
-  const [result, setResult] = useState(null);
+  const [results, setResults] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('baseline'); // 'baseline' or 'proposed'
+  const [dataset, setDataset] = useState([]);
+  const [datasetResults, setDatasetResults] = useState([]);
+  const [processingDataset, setProcessingDataset] = useState(false);
 
   // Model performance comparison data
   const modelPerformanceData = [
@@ -138,45 +140,160 @@ const SarcasmDetector = () => {
 
     setAnalyzing(true);
     
-    // Simulate processing delay (proposed model takes slightly longer)
-    const delay = selectedModel === 'proposed' ? 900 : 800;
+    // Run both models simultaneously
     setTimeout(() => {
-      const detection = detectSarcasm(text, selectedModel);
-      setResult(detection);
+      const baselineDetection = detectSarcasm(text, 'baseline');
+      const proposedDetection = detectSarcasm(text, 'proposed');
+      
+      setResults({
+        baseline: baselineDetection,
+        proposed: proposedDetection
+      });
       setAnalyzing(false);
-    }, delay);
+    }, 900);
   };
 
   const handleReset = () => {
     setText('');
-    setResult(null);
+    setResults(null);
+  };
+
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      const content = e.target.result;
+      let parsedData = [];
+
+      try {
+        if (file.name.endsWith('.json')) {
+          const jsonData = JSON.parse(content);
+          parsedData = Array.isArray(jsonData) ? jsonData : [jsonData];
+          parsedData = parsedData.map((item, index) => ({
+            id: index + 1,
+            text: item.text || item.comment || item.sentence || item['Response Text'] || JSON.stringify(item),
+            label: item.label || item.sarcastic || item.is_sarcastic || item.Label || null
+          }));
+        } else if (file.name.endsWith('.csv')) {
+          const lines = content.split('\n').filter(line => line.trim());
+          const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+          
+          parsedData = lines.slice(1).map((line, index) => {
+            const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+            const textIndex = headers.findIndex(h => 
+              h.includes('text') || h.includes('comment') || h.includes('sentence') || h.includes('response')
+            );
+            const labelIndex = headers.findIndex(h => h.includes('label') || h.includes('sarcastic') || h.includes('sarcasm'));
+            
+            const text = values[textIndex] || values[values.length - 1] || '';
+            let label = null;
+            
+            if (labelIndex >= 0) {
+              const labelValue = values[labelIndex].toLowerCase();
+              label = (labelValue === '1' || labelValue === 'true' || 
+                      labelValue === 'sarcastic' || labelValue === 'sarc') ? true :
+                     (labelValue === '0' || labelValue === 'false' || 
+                      labelValue === 'notsarc' || labelValue === 'not sarcastic') ? false : null;
+            }
+            
+            return {
+              id: index + 1,
+              text: text,
+              label: label
+            };
+          }).filter(item => item.text);
+        }
+
+        setDataset(parsedData);
+        setDatasetResults([]);
+      } catch (error) {
+        alert('Error parsing file. Please ensure it is a valid CSV or JSON file.\n\nExpected CSV format:\nCorpus,Label,ID,Response Text\nGEN,notsarc,1,"Sample text here"');
+        console.error('Parse error:', error);
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
+  const processDataset = async () => {
+    if (dataset.length === 0) return;
+    
+    setProcessingDataset(true);
+    const results = [];
+    
+    for (let i = 0; i < dataset.length; i++) {
+      const item = dataset[i];
+      const baselineDetection = detectSarcasm(item.text, 'baseline');
+      const proposedDetection = detectSarcasm(item.text, 'proposed');
+      
+      results.push({
+        ...item,
+        baseline: {
+          predicted: baselineDetection.isSarcastic,
+          confidence: baselineDetection.confidence,
+          correct: item.label !== null ? (baselineDetection.isSarcastic === item.label) : null
+        },
+        proposed: {
+          predicted: proposedDetection.isSarcastic,
+          confidence: proposedDetection.confidence,
+          correct: item.label !== null ? (proposedDetection.isSarcastic === item.label) : null
+        }
+      });
+      
+      if (i % 10 === 0) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+    }
+    
+    setDatasetResults(results);
+    setProcessingDataset(false);
+  };
+
+  const clearDataset = () => {
+    setDataset([]);
+    setDatasetResults([]);
+  };
+
+  const calculateDatasetStats = () => {
+    if (datasetResults.length === 0) return null;
+    
+    const total = datasetResults.length;
+    const withLabels = datasetResults.filter(r => r.label !== null);
+    
+    const baselineCorrect = withLabels.filter(r => r.baseline.correct).length;
+    const baselineAccuracy = withLabels.length > 0 ? (baselineCorrect / withLabels.length * 100).toFixed(2) : 'N/A';
+    const baselineSarcastic = datasetResults.filter(r => r.baseline.predicted).length;
+    
+    const proposedCorrect = withLabels.filter(r => r.proposed.correct).length;
+    const proposedAccuracy = withLabels.length > 0 ? (proposedCorrect / withLabels.length * 100).toFixed(2) : 'N/A';
+    const proposedSarcastic = datasetResults.filter(r => r.proposed.predicted).length;
+    
+    return {
+      total,
+      withLabels: withLabels.length,
+      baseline: {
+        correct: baselineCorrect,
+        accuracy: baselineAccuracy,
+        predictedSarcastic: baselineSarcastic,
+        predictedNotSarcastic: total - baselineSarcastic
+      },
+      proposed: {
+        correct: proposedCorrect,
+        accuracy: proposedAccuracy,
+        predictedSarcastic: proposedSarcastic,
+        predictedNotSarcastic: total - proposedSarcastic
+      }
+    };
   };
 
   return (
     <div className="sarcasm-detector">
       <div className="header">
         <h1>Sarcasm Detector</h1>
-        <p className="subtitle">Compare Baseline vs. Proposed Deep Learning Models</p>
-      </div>
-
-      <div className="model-selector">
-        <h3>Select Model:</h3>
-        <div className="model-options">
-          <button 
-            className={`model-button ${selectedModel === 'baseline' ? 'active' : ''}`}
-            onClick={() => setSelectedModel('baseline')}
-          >
-            <div className="model-button-title">Baseline Model</div>
-            <div className="model-button-desc">GloVe + CNN + BiLSTM + Attention</div>
-          </button>
-          <button 
-            className={`model-button ${selectedModel === 'proposed' ? 'active' : ''}`}
-            onClick={() => setSelectedModel('proposed')}
-          >
-            <div className="model-button-title">Proposed Model</div>
-            <div className="model-button-desc">BERT + CNN + BiLSTM + MHA</div>
-          </button>
-        </div>
+        <p className="subtitle">Real-time Comparison: Baseline vs. Proposed Deep Learning Models</p>
       </div>
 
       <div className="input-section">
@@ -208,35 +325,74 @@ const SarcasmDetector = () => {
         </div>
       </div>
 
-      {result && (
-        <div className={`result-section ${result.isSarcastic ? 'sarcastic' : 'not-sarcastic'}`}>
-          <div className="result-header">
-            <h2>
-              {result.isSarcastic ? 'SARCASM DETECTED!' : 'Not Sarcastic'}
-            </h2>
-            <div className="model-badge">{result.model}</div>
-            <div className="processing-time">Processing time: {result.processingTime}</div>
-          </div>
+      {results && (
+        <div className="dual-results-section">
+          <h2 className="comparison-title">Model Comparison Results</h2>
           
-          <div className="confidence-bar">
-            <div className="confidence-label">
-              Confidence: {result.confidence}%
-            </div>
-            <div className="progress-bar">
-              <div 
-                className="progress-fill"
-                style={{ width: `${result.confidence}%` }}
-              />
-            </div>
-          </div>
+          <div className="models-comparison">
+            <div className={`result-section ${results.baseline.isSarcastic ? 'sarcastic' : 'not-sarcastic'}`}>
+              <div className="result-header">
+                <h2>
+                  {results.baseline.isSarcastic ? 'SARCASM DETECTED!' : 'Not Sarcastic'}
+                </h2>
+                <div className="model-badge baseline-badge">Baseline Model</div>
+                <div className="model-desc">GloVe + CNN + BiLSTM + Attention</div>
+                <div className="processing-time">Processing time: {results.baseline.processingTime}</div>
+              </div>
+              
+              <div className="confidence-bar">
+                <div className="confidence-label">
+                  Confidence: {results.baseline.confidence}%
+                </div>
+                <div className="progress-bar">
+                  <div 
+                    className="progress-fill"
+                    style={{ width: `${results.baseline.confidence}%` }}
+                  />
+                </div>
+              </div>
 
-          <div className="indicators">
-            <h3>Analysis Details:</h3>
-            <ul>
-              {result.indicators.map((indicator, index) => (
-                <li key={index}>{indicator}</li>
-              ))}
-            </ul>
+              <div className="indicators">
+                <h3>Analysis Details:</h3>
+                <ul>
+                  {results.baseline.indicators.map((indicator, index) => (
+                    <li key={index}>{indicator}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <div className={`result-section ${results.proposed.isSarcastic ? 'sarcastic' : 'not-sarcastic'}`}>
+              <div className="result-header">
+                <h2>
+                  {results.proposed.isSarcastic ? 'SARCASM DETECTED!' : 'Not Sarcastic'}
+                </h2>
+                <div className="model-badge proposed-badge">Proposed Model</div>
+                <div className="model-desc">BERT + CNN + BiLSTM + MHA</div>
+                <div className="processing-time">Processing time: {results.proposed.processingTime}</div>
+              </div>
+              
+              <div className="confidence-bar">
+                <div className="confidence-label">
+                  Confidence: {results.proposed.confidence}%
+                </div>
+                <div className="progress-bar">
+                  <div 
+                    className="progress-fill"
+                    style={{ width: `${results.proposed.confidence}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="indicators">
+                <h3>Analysis Details:</h3>
+                <ul>
+                  {results.proposed.indicators.map((indicator, index) => (
+                    <li key={index}>{indicator}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -269,6 +425,198 @@ const SarcasmDetector = () => {
             Example 4
           </button>
         </div>
+      </div>
+
+      <div className="dataset-section">
+        <h2>Upload Dataset for Batch Testing</h2>
+        <p className="dataset-description">
+          Upload a CSV file to test both models on multiple text samples simultaneously.
+        </p>
+        
+        <div className="dataset-upload">
+          <label htmlFor="file-upload" className="file-upload-label">
+            Choose CSV File
+          </label>
+          <input
+            id="file-upload"
+            type="file"
+            accept=".csv"
+            onChange={handleFileUpload}
+            style={{ display: 'none' }}
+          />
+          
+          {dataset.length > 0 && (
+            <div className="dataset-info">
+              <span className="dataset-count">{dataset.length} samples loaded</span>
+              <button className="clear-dataset-btn" onClick={clearDataset}>
+                Clear Dataset
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="format-info">
+          <details>
+            <summary>Expected File Format</summary>
+            <div className="format-examples">
+              <div className="format-example">
+                <strong>CSV Format:</strong>
+                <pre>{`Corpus,Label,ID,Response Text
+GEN,notsarc,1,"If that's true, then Freedom of Speech is doomed."
+GEN,sarc,2,"Oh great, another meeting!"
+GEN,notsarc,3,"Thank you for your help today."`}</pre>
+                <p><em>Note: Label column is optional. Accepted values: sarc/notsarc, 1/0, true/false, sarcastic/not sarcastic</em></p>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        {dataset.length > 0 && (
+          <div className="dataset-controls">
+            <button 
+              className="process-dataset-btn"
+              onClick={processDataset}
+              disabled={processingDataset}
+            >
+              {processingDataset ? `Processing... (${datasetResults.length}/${dataset.length})` : 'Process Dataset'}
+            </button>
+          </div>
+        )}
+
+        {datasetResults.length > 0 && (
+          <div className="dataset-results">
+            <h3>Dataset Results</h3>
+            
+            {(() => {
+              const stats = calculateDatasetStats();
+              return stats && (
+                <>
+                  <div className="dataset-stats-header">
+                    <h4>Baseline Model Results</h4>
+                  </div>
+                  <div className="dataset-stats">
+                    <div className="stat-card">
+                      <div className="stat-value">{stats.total}</div>
+                      <div className="stat-label">Total Samples</div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-value">{stats.baseline.predictedSarcastic}</div>
+                      <div className="stat-label">Predicted Sarcastic</div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-value">{stats.baseline.predictedNotSarcastic}</div>
+                      <div className="stat-label">Predicted Not Sarcastic</div>
+                    </div>
+                    {stats.withLabels > 0 && (
+                      <>
+                        <div className="stat-card">
+                          <div className="stat-value">{stats.baseline.correct}/{stats.withLabels}</div>
+                          <div className="stat-label">Correct Predictions</div>
+                        </div>
+                        <div className="stat-card highlight">
+                          <div className="stat-value">{stats.baseline.accuracy}%</div>
+                          <div className="stat-label">Accuracy</div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  
+                  <div className="dataset-stats-header">
+                    <h4>Proposed Model Results</h4>
+                  </div>
+                  <div className="dataset-stats">
+                    <div className="stat-card">
+                      <div className="stat-value">{stats.total}</div>
+                      <div className="stat-label">Total Samples</div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-value">{stats.proposed.predictedSarcastic}</div>
+                      <div className="stat-label">Predicted Sarcastic</div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-value">{stats.proposed.predictedNotSarcastic}</div>
+                      <div className="stat-label">Predicted Not Sarcastic</div>
+                    </div>
+                    {stats.withLabels > 0 && (
+                      <>
+                        <div className="stat-card">
+                          <div className="stat-value">{stats.proposed.correct}/{stats.withLabels}</div>
+                          <div className="stat-label">Correct Predictions</div>
+                        </div>
+                        <div className="stat-card highlight">
+                          <div className="stat-value">{stats.proposed.accuracy}%</div>
+                          <div className="stat-label">Accuracy</div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
+            
+            <div className="results-table-container">
+              <table className="results-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Text</th>
+                    <th colSpan="2">Baseline Model</th>
+                    <th colSpan="2">Proposed Model</th>
+                    {datasetResults.some(r => r.label !== null) && <th>Actual</th>}
+                  </tr>
+                  <tr className="sub-header">
+                    <th></th>
+                    <th></th>
+                    <th>Predicted</th>
+                    <th>Conf.</th>
+                    <th>Predicted</th>
+                    <th>Conf.</th>
+                    {datasetResults.some(r => r.label !== null) && <th>Label</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {datasetResults.map((result) => (
+                    <tr key={result.id}>
+                      <td>{result.id}</td>
+                      <td className="text-cell">{result.text}</td>
+                      <td>
+                        <span className={`prediction-badge ${result.baseline.predicted ? 'sarcastic' : 'not-sarcastic'}`}>
+                          {result.baseline.predicted ? 'Sarcastic' : 'Not Sarcastic'}
+                        </span>
+                        {result.label !== null && (
+                          <span className={`match-icon ${result.baseline.correct ? 'correct' : 'incorrect'}`}>
+                            {result.baseline.correct ? ' PASS' : ' FAIL'}
+                          </span>
+                        )}
+                      </td>
+                      <td>{result.baseline.confidence}%</td>
+                      <td>
+                        <span className={`prediction-badge ${result.proposed.predicted ? 'sarcastic' : 'not-sarcastic'}`}>
+                          {result.proposed.predicted ? 'Sarcastic' : 'Not Sarcastic'}
+                        </span>
+                        {result.label !== null && (
+                          <span className={`match-icon ${result.proposed.correct ? 'correct' : 'incorrect'}`}>
+                            {result.proposed.correct ? ' PASS' : ' FAIL'}
+                          </span>
+                        )}
+                      </td>
+                      <td>{result.proposed.confidence}%</td>
+                      {datasetResults.some(r => r.label !== null) && (
+                        <td>
+                          {result.label !== null ? (
+                            <span className={`prediction-badge ${result.label ? 'sarcastic' : 'not-sarcastic'}`}>
+                              {result.label ? 'Sarcastic' : 'Not Sarcastic'}
+                            </span>
+                          ) : '-'}
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="performance-graphs">
