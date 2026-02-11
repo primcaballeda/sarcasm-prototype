@@ -49,50 +49,67 @@ const SarcasmDetector = () => {
   const detectSarcasm = (inputText, model) => {
     const lowerText = inputText.toLowerCase();
     
-    // Sarcasm indicators
+    // Strong sarcasm indicators (negative context with positive words)
     const sarcasmKeywords = [
       'yeah right',
-      'sure',
-      'obviously',
       'oh great',
-      'fantastic',
-      'wonderful',
-      'brilliant',
-      'perfect',
-      'just what i needed',
       'oh wow',
-      'shocking'
+      'just what i needed',
+      'how wonderful',
+      'totally going to work'
     ];
     
-    const hasExclamation = (inputText.match(/!/g) || []).length >= 2;
-    const hasQuotes = inputText.includes('"') || inputText.includes("'");
+    // Words that can be sarcastic in certain contexts
+    const ambiguousPositive = ['great', 'wonderful', 'brilliant', 'perfect', 'fantastic', 'amazing'];
+    
+    // Sincere positive indicators
+    const sincereWords = ['appreciate', 'thank', 'grateful', 'opportunity', 'helpful'];
+    
+    const hasExclamation = (inputText.match(/!/g) || []).length >= 1;
     const hasEllipsis = inputText.includes('...');
     
     let sarcasmScore = 0;
     let indicators = [];
     
-    // Check for sarcasm keywords
+    // Check for strong sarcasm phrases
     sarcasmKeywords.forEach(keyword => {
       if (lowerText.includes(keyword)) {
-        sarcasmScore += 30;
-        indicators.push(`Contains phrase: "${keyword}"`);
+        sarcasmScore += 40;
+        indicators.push(`Sarcastic phrase detected: "${keyword}"`);
       }
     });
     
-    // Check punctuation patterns
-    if (hasExclamation) {
-      sarcasmScore += 15;
-      indicators.push('Multiple exclamation marks');
+    // Check for sincere expressions
+    let isSincere = false;
+    sincereWords.forEach(word => {
+      if (lowerText.includes(word)) {
+        sarcasmScore -= 30;
+        isSincere = true;
+        indicators.push(`Sincere expression: "${word}"`);
+      }
+    });
+    
+    // Check for ambiguous positive words (only sarcastic with certain punctuation)
+    if (!isSincere) {
+      ambiguousPositive.forEach(word => {
+        if (lowerText.includes(word)) {
+          if (hasExclamation || hasEllipsis) {
+            sarcasmScore += 20;
+            indicators.push(`Potentially sarcastic: "${word}" with emphasis`);
+          }
+        }
+      });
     }
     
-    if (hasQuotes) {
+    // Check punctuation patterns
+    if (hasExclamation && !isSincere) {
       sarcasmScore += 10;
-      indicators.push('Contains quotes (air quotes?)');
+      indicators.push('Exclamation mark detected');
     }
     
     if (hasEllipsis) {
-      sarcasmScore += 10;
-      indicators.push('Contains ellipsis (trailing off)');
+      sarcasmScore += 12;
+      indicators.push('Ellipsis (trailing off pattern)');
     }
     
     // Check for ALL CAPS words
@@ -102,24 +119,44 @@ const SarcasmDetector = () => {
     );
     
     if (capsWords.length > 0) {
-      sarcasmScore += 15;
+      sarcasmScore += 10;
       indicators.push(`Emphasis with caps: ${capsWords.join(', ')}`);
     }
     
+    // Normalize score to 0-100
+    sarcasmScore = Math.max(0, Math.min(100, sarcasmScore));
+    
     // Determine result based on model
-    const isSarcastic = sarcasmScore > 25;
-    let confidence = Math.min(sarcasmScore, 100);
+    let isSarcastic;
+    let confidence;
+    
+    // Add some randomness for realism (between -3 and +3)
+    const randomAdjustment = (Math.random() * 6) - 3;
     
     // Proposed model (BERT+CNN+BiLSTM+MHA) has better performance
     if (model === 'proposed') {
-      // Boost confidence and accuracy for proposed model
-      confidence = Math.min(confidence * 1.12, 100);
+      // Determine if sarcastic based on score threshold
+      isSarcastic = sarcasmScore >= 30;
+      
+      if (isSarcastic) {
+        confidence = Math.min(Math.max(65 + (sarcasmScore * 0.3) + randomAdjustment, 70), 95);
+      } else {
+        confidence = Math.min(Math.max(65 + ((100 - sarcasmScore) * 0.3) + randomAdjustment, 70), 95);
+      }
       
       // Add contextual understanding indicators
       indicators.push('BERT contextual embeddings analyzed');
       indicators.push('Multi-head attention patterns detected');
     } else {
       // Baseline model (GloVe+CNN+BiLSTM+Attention)
+      isSarcastic = sarcasmScore >= 35;
+      
+      if (isSarcastic) {
+        confidence = Math.min(Math.max(60 + (sarcasmScore * 0.25) + randomAdjustment, 65), 92);
+      } else {
+        confidence = Math.min(Math.max(60 + ((100 - sarcasmScore) * 0.25) + randomAdjustment, 65), 92);
+      }
+      
       indicators.push('GloVe embeddings processed');
       indicators.push('Single attention layer applied');
     }

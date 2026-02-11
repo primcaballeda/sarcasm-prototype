@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import './App.css';
-import SarcasmDetector from './components/SarcasmDetector';
+import SarcasmDetector from './components/SarcasmDetector.jsx';
 
 function App() {
   return (
