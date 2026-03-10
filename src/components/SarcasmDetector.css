@@ -794,6 +794,31 @@
   cursor: not-allowed;
 }
 
+.show-all-container {
+  display: flex;
+  justify-content: center;
+  margin: 25px 0;
+  padding: 20px;
+}
+
+.show-all-btn {
+  padding: 12px 30px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.show-all-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
 .dataset-results {
   margin-top: 40px;
 }
@@ -868,7 +893,10 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 0.95rem;
-}.sub-header {
+  table-layout: fixed;
+}
+
+.sub-header {
   background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
 }
 
@@ -877,8 +905,6 @@
   border-bottom: none;
   padding: 10px 15px;
 }
-
-.results-table 
 
 .results-table thead {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -910,25 +936,23 @@
 }
 
 .text-cell {
-  max-width: 400px;
+  max-width: 300px;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.4;
 }
 
 .prediction-badge {
-  display: inline-block;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 600;
+  display: inline;
+  font-size: 0.9rem;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .prediction-badge.sarcastic {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: white;
+  color: #333;
 }
 
 .prmodels-comparison {
@@ -936,25 +960,21 @@
   }
 
   .ediction-badge.not-sarcastic {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  color: white;
+  color: #333;
 }
 
 .match-icon {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: bold;
-  padding: 4px 8px;
-  border-radius: 4px;
+  margin-left: 8px;
 }
 
 .match-icon.correct {
-  color: white;
-  background: #4caf50;
+  color: #22c55e;
 }
 
 .match-icon.incorrect {
-  color: white;
-  background: #f44336;
+  color: #ef4444;
 }
 
 /* Responsive adjustments for dataset section */
@@ -982,5 +1002,222 @@
 
   .text-cell {
     max-width: 200px;
+  }
+}
+
+/* Metrics Comparison Styles */
+.metrics-comparison {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 30px;
+  margin: 30px 0;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.metrics-comparison h4 {
+  color: white;
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 25px;
+  text-align: center;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.metrics-table-container {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+  overflow-x: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.metrics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 1rem;
+  table-layout: auto;
+  min-width: 600px;
+}
+
+.metrics-table thead th {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 15px;
+  text-align: center;
+  font-weight: 600;
+  border: none;
+}
+
+.metrics-table .model-subtitle {
+  font-size: 0.75rem;
+  font-weight: 400;
+  opacity: 0.9;
+  display: block;
+  margin-top: 5px;
+}
+
+.metrics-table tbody tr {
+  border-bottom: 1px solid #e0e0e0;
+  transition: background-color 0.3s;
+}
+
+.metrics-table tbody tr:hover {
+  background-color: #f5f5f5;
+}
+
+.metrics-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.metrics-table td {
+  padding: 15px 10px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.metric-name {
+  font-weight: 600;
+  color: #1a1a1a;
+  text-align: left !important;
+  font-size: 1rem;
+  padding-left: 20px !important;
+}
+
+.baseline-col {
+  background: #ef4444 !important;
+}
+
+.proposed-col {
+  background: #10b981 !important;
+}
+
+.baseline-value {
+  color: #ef4444;
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+
+.proposed-value {
+  color: #10b981;
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+
+.improvement-value {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #667eea;
+}
+
+/* Confusion Matrices Comparison */
+.confusion-matrices-comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.confusion-matrix-side {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.confusion-matrix-side h5 {
+  color: #1a1a1a;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.mini-confusion-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.matrix-row {
+  display: grid;
+  grid-template-columns: 120px 1fr 1fr;
+  gap: 5px;
+}
+
+.matrix-cell-mini {
+  padding: 15px 10px;
+  text-align: center;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 50px;
+}
+
+.matrix-cell-mini.header-cell {
+  background: #f0f0f0;
+  color: #1a1a1a;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.matrix-cell-mini.tp-cell {
+  background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);
+  color: #1a1a1a;
+}
+
+.matrix-cell-mini.tn-cell {
+  background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+  color: #1a1a1a;
+}
+
+.matrix-cell-mini.fp-cell {
+  background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+  color: #1a1a1a;
+}
+
+.matrix-cell-mini.fn-cell {
+  background: linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%);
+  color: #1a1a1a;
+}
+
+/* Responsive adjustments for metrics comparison */
+@media (max-width: 768px) {
+  .metrics-comparison {
+    padding: 20px;
+  }
+
+  .metrics-table {
+    font-size: 0.85rem;
+  }
+
+  .metric-name {
+    font-size: 0.95rem;
+  }
+
+  .baseline-value,
+  .proposed-value {
+    font-size: 1rem;
+  }
+
+  .improvement-value {
+    font-size: 0.9rem;
+  }
+
+  .confusion-matrices-comparison {
+    grid-template-columns: 1fr;
+  }
+
+  .matrix-row {
+    grid-template-columns: 100px 1fr 1fr;
+  }
+
+  .matrix-cell-mini {
+    padding: 8px;
+    font-size: 0.8rem;
   }
 }
