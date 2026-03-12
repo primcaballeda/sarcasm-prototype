@@ -5,9 +5,11 @@ import torch.nn as nn
 import tensorflow as tf
 from tensorflow import keras
 from transformers import BertTokenizer, BertModel
+from tensorflow.keras.preprocessing.sequence import pad_sequences
 import numpy as np
 import time
 import os
+import pickle
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
@@ -16,19 +18,36 @@ CORS(app)  # Enable CORS for React frontend
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"PyTorch device: {device}")
 
-# Load tokenizer (shared by both models)
-tokenizer_path = './tokenizer'
+# ============================================================================
+# TOKENIZERS
+# ============================================================================
+
+# Load BERT tokenizer for Proposed Model
+bert_tokenizer_path = './tokenizer'
 try:
-    if os.path.exists(tokenizer_path) and os.path.isdir(tokenizer_path):
-        tokenizer = BertTokenizer.from_pretrained(tokenizer_path)
-        print("✓ Tokenizer loaded from local directory")
+    if os.path.exists(bert_tokenizer_path) and os.path.isdir(bert_tokenizer_path):
+        bert_tokenizer = BertTokenizer.from_pretrained(bert_tokenizer_path)
+        print("✓ BERT tokenizer loaded from local directory")
     else:
         raise FileNotFoundError("Local tokenizer directory not found")
 except Exception as e:
-    print(f"Could not load local tokenizer: {e}")
-    print("Downloading tokenizer from HuggingFace...")
-    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    print("✓ Tokenizer loaded from HuggingFace")
+    print(f"Could not load local BERT tokenizer: {e}")
+    print("Downloading BERT tokenizer from HuggingFace...")
+    bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    print("✓ BERT tokenizer loaded from HuggingFace")
+
+# Load Keras tokenizer for Baseline Model
+baseline_tokenizer = None
+max_len = 50  # Must match the training parameter
+try:
+    baseline_tokenizer_path = './tokenizer/baseline_tokenizer.pkl'
+    with open(baseline_tokenizer_path, 'rb') as f:
+        baseline_tokenizer = pickle.load(f)
+    print("✓ Baseline (Keras) tokenizer loaded")
+except Exception as e:
+    print(f"❌ Could not load baseline tokenizer: {e}")
+    print("   Please copy 'baseline_tokenizer.pkl' to backend/tokenizer/ directory")
+    baseline_tokenizer = None
 
 # ============================================================================
 # PROPOSED MODEL (PyTorch - BERT + CNN + BiLSTM + Multi-Head Attention)
@@ -115,28 +134,36 @@ except Exception as e:
 # BASELINE MODEL (TensorFlow/Keras - BiLSTM + Attention)
 # ============================================================================
 
+# Custom layer to replace Lambda (used in model_fixed.keras)
 class SumLayer(keras.layers.Layer):
-    """Custom layer to replace Lambda"""
-    def call(self, inputs):
-        return tf.reduce_sum(inputs, axis=1)
+    """Custom layer that replaces Lambda(lambda x: tf.reduce_sum(x, axis=-2))"""
+    def call(self, inputs, mask=None):
+        # Accept mask parameter like Lambda does
+        return tf.reduce_sum(inputs, axis=-2)
+    
+    def compute_mask(self, inputs, mask=None):
+        # Lambda doesn't output a mask, so neither should we
+        return None
+    
+    def get_config(self):
+        return super().get_config()
 
 # Load Baseline Model (Keras)
 baseline_model = None
 try:
-    custom_objects = {
-        'tf': tf,
-        'K': tf.keras.backend,
-        'SumLayer': SumLayer,
-    }
-    
+    # Load model_fixed.keras - converted from your model.h5 with Lambda replaced by SumLayer
+    print("Loading baseline model from model_fixed.keras...")
     baseline_model = keras.models.load_model(
-        './model/model_fixed.keras', 
-        custom_objects=custom_objects,
+        './model/model_fixed.keras',
+        custom_objects={'SumLayer': SumLayer},
+        compile=False,
         safe_mode=False
     )
-    print(f"✓ Baseline model (Keras) loaded successfully")
+    baseline_model.compile(optimizer='adam', loss='binary_crossentropy')
+    print(f"✓ Baseline model loaded successfully from model_fixed.keras")
+    
 except Exception as e:
-    print(f"❌ Error loading baseline model: {e}")
+    print(f"❌ Failed to load model_fixed.keras: {e}")
     baseline_model = None
 
 # ============================================================================
@@ -155,8 +182,8 @@ def predict_proposed(text):
     start_time = time.time()
     
     try:
-        # Tokenize input
-        encoded = tokenizer.encode_plus(
+        # Tokenize input with BERT tokenizer
+        encoded = bert_tokenizer.encode_plus(
             text,
             add_special_tokens=True,
             max_length=50,
@@ -199,7 +226,7 @@ def predict_proposed(text):
 
 
 def predict_baseline(text):
-    """Predict using Baseline model (Keras - BiLSTM + Attention)"""
+    """Predict using Baseline model (Keras - GloVe + CNN + BiLSTM + Attention)"""
     if baseline_model is None:
         return {
             'isSarcastic': False,
@@ -207,24 +234,22 @@ def predict_baseline(text):
             'error': 'Baseline model not loaded'
         }
     
+    if baseline_tokenizer is None:
+        return {
+            'isSarcastic': False,
+            'confidence': 0.0,
+            'error': 'Baseline tokenizer not loaded'
+        }
+    
     start_time = time.time()
     
     try:
-        # Tokenize input
-        encoded = tokenizer.encode_plus(
-            text,
-            add_special_tokens=True,
-            max_length=50,
-            padding='max_length',
-            truncation=True,
-            return_attention_mask=True,
-            return_tensors='tf'
-        )
-        
-        input_ids = encoded['input_ids']
+        # Tokenize input with Keras tokenizer (same as training)
+        sequence = baseline_tokenizer.texts_to_sequences([text])
+        padded_sequence = pad_sequences(sequence, maxlen=max_len, padding='post')
         
         # Get prediction
-        prediction = baseline_model.predict(input_ids, verbose=0)
+        prediction = baseline_model.predict(padded_sequence, verbose=0)
         probability = float(prediction[0][0])
         
         is_sarcastic = probability > 0.5
@@ -389,6 +414,31 @@ def health():
     })
 
 
+@app.route('/api/metrics', methods=['GET'])
+def get_metrics():
+    """Get baseline model performance metrics"""
+    import json
+    try:
+        metrics_path = './model/model_metrics.json'
+        if os.path.exists(metrics_path):
+            with open(metrics_path, 'r') as f:
+                metrics = json.load(f)
+            return jsonify({
+                'status': 'success',
+                'metrics': metrics
+            })
+        else:
+            return jsonify({
+                'status': 'not_found',
+                'message': 'Metrics file not found. Train the model first to generate metrics.'
+            }), 404
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
 if __name__ == '__main__':
     print("\n" + "="*80)
     print("🚀 DUAL MODEL SARCASM DETECTION API")
@@ -402,6 +452,7 @@ if __name__ == '__main__':
     print("  POST /api/predict/compare      - Compare both models")
     print("  POST /api/predict_batch        - Batch predictions")
     print("  GET  /api/health               - Health check")
+    print("  GET  /api/metrics              - Get baseline model performance metrics")
     print("="*80 + "\n")
     
     app.run(debug=True, port=5000)

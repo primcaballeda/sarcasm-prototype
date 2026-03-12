@@ -330,6 +330,15 @@ const SarcasmDetector = () => {
           
           parsedData = lines.slice(1).map((line, index) => {
             const values = parseCSVLine(line).map(v => v.replace(/^"|"$/g, '').trim());
+            
+            // Skip if this row looks like a header row (contains words like "corpus", "label", "text")
+            const firstValue = values[0]?.toLowerCase() || '';
+            if (firstValue === 'corpus' || firstValue === 'label' || firstValue === 'id' || 
+                values.join('').toLowerCase().includes('response text')) {
+              console.log('Skipping duplicate header row:', values);
+              return null;
+            }
+            
             const textIndex = headers.findIndex(h => 
               h.includes('text') || h.includes('comment') || h.includes('sentence') || h.includes('response')
             );
@@ -353,7 +362,7 @@ const SarcasmDetector = () => {
               text: text,
               label: label
             };
-          }).filter(item => item.text && item.text.length > 0);
+          }).filter(item => item !== null && item.text && item.text.length > 0);
           
           console.log('Parsed data count:', parsedData.length);
           
@@ -392,28 +401,60 @@ const SarcasmDetector = () => {
         // Get texts for this batch
         const texts = batch.map(item => item.text);
         
-        // Call the batch prediction API for proposed model
+        console.log(`Processing batch ${batchStart}-${batchEnd}:`, texts.slice(0, 3), '...');
+        
+        // Call the batch prediction API for both models
         let proposedPredictions = [];
+        let baselinePredictions = [];
+        
         try {
-          const apiResponse = await fetch('http://localhost:5000/api/predict_batch', {
+          // Proposed model predictions
+          const proposedResponse = await fetch('http://localhost:5000/api/predict_batch', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ texts: texts })
+            body: JSON.stringify({ texts: texts, model: 'proposed' })
           });
           
-          if (apiResponse.ok) {
-            const apiResult = await apiResponse.json();
-            proposedPredictions = apiResult.results || [];
+          if (proposedResponse.ok) {
+            const proposedResult = await proposedResponse.json();
+            proposedPredictions = proposedResult.results || [];
+            console.log('✅ Proposed API SUCCESS - got', proposedPredictions.length, 'predictions');
           } else {
-            throw new Error('API request failed');
+            throw new Error('Proposed API request failed');
+          }
+          
+          // Baseline model predictions
+          const baselineResponse = await fetch('http://localhost:5000/api/predict_batch', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ texts: texts, model: 'baseline' })
+          });
+          
+          if (baselineResponse.ok) {
+            const baselineResult = await baselineResponse.json();
+            baselinePredictions = baselineResult.results || [];
+            console.log('✅ Baseline API SUCCESS - got', baselinePredictions.length, 'predictions');
+          } else {
+            throw new Error('Baseline API request failed');
           }
         } catch (error) {
-          console.error('API error, using fallback for batch:', error);
+          console.error('❌ API ERROR - USING FALLBACK:', error);
+          console.error('Error details:', error.message);
           // Fallback to static detection if API fails
+          console.warn('⚠️ Using rule-based fallback detection instead of trained models');
           proposedPredictions = batch.map(item => {
             const result = detectSarcasm(item.text, 'proposed');
+            return {
+              isSarcastic: result.isSarcastic,
+              confidence: result.confidence
+            };
+          });
+          baselinePredictions = batch.map(item => {
+            const result = detectSarcasm(item.text, 'baseline');
             return {
               isSarcastic: result.isSarcastic,
               confidence: result.confidence
@@ -425,8 +466,8 @@ const SarcasmDetector = () => {
         for (let i = 0; i < batch.length; i++) {
           const item = batch[i];
           
-          // Baseline detection (static)
-          const baselineResult = detectSarcasm(item.text, 'baseline');
+          // Baseline detection (from API)
+          const baselineResult = baselinePredictions[i] || { isSarcastic: false, confidence: 0 };
           
           // Proposed detection (from API)
           const proposedResult = proposedPredictions[i] || { isSarcastic: false, confidence: 0 };
