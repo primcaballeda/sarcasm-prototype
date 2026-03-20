@@ -27,14 +27,14 @@ bert_tokenizer_path = './tokenizer'
 try:
     if os.path.exists(bert_tokenizer_path) and os.path.isdir(bert_tokenizer_path):
         bert_tokenizer = BertTokenizer.from_pretrained(bert_tokenizer_path)
-        print("✓ BERT tokenizer loaded from local directory")
+        print("BERT tokenizer loaded from local directory")
     else:
         raise FileNotFoundError("Local tokenizer directory not found")
 except Exception as e:
     print(f"Could not load local BERT tokenizer: {e}")
     print("Downloading BERT tokenizer from HuggingFace...")
     bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    print("✓ BERT tokenizer loaded from HuggingFace")
+    print("BERT tokenizer loaded from HuggingFace")
 
 # Load Keras tokenizer for Baseline Model
 baseline_tokenizer = None
@@ -43,9 +43,9 @@ try:
     baseline_tokenizer_path = './tokenizer/baseline_tokenizer.pkl'
     with open(baseline_tokenizer_path, 'rb') as f:
         baseline_tokenizer = pickle.load(f)
-    print("✓ Baseline (Keras) tokenizer loaded")
+    print(" Baseline (Keras) tokenizer loaded")
 except Exception as e:
-    print(f"❌ Could not load baseline tokenizer: {e}")
+    print(f" Could not load baseline tokenizer: {e}")
     print("   Please copy 'baseline_tokenizer.pkl' to backend/tokenizer/ directory")
     baseline_tokenizer = None
 
@@ -125,9 +125,9 @@ try:
     proposed_model.load_state_dict(torch.load('./model/sarcasm_model.pt', map_location=device))
     proposed_model.to(device)
     proposed_model.eval()
-    print(f"✓ Proposed model (PyTorch) loaded successfully on {device}")
+    print(f"Proposed model (PyTorch) loaded successfully on {device}")
 except Exception as e:
-    print(f"❌ Error loading proposed model: {e}")
+    print(f"Error loading proposed model: {e}")
     proposed_model = None
 
 # ============================================================================
@@ -160,10 +160,10 @@ try:
         safe_mode=False
     )
     baseline_model.compile(optimizer='adam', loss='binary_crossentropy')
-    print(f"✓ Baseline model loaded successfully from model_fixed.keras")
+    print(f"Baseline model loaded successfully from model_fixed.keras")
     
 except Exception as e:
-    print(f"❌ Failed to load model_fixed.keras: {e}")
+    print(f" Failed to load model_fixed.keras: {e}")
     baseline_model = None
 
 # ============================================================================
@@ -416,22 +416,35 @@ def health():
 
 @app.route('/api/metrics', methods=['GET'])
 def get_metrics():
-    """Get baseline model performance metrics"""
+    """Get both baseline and proposed model performance metrics"""
     import json
     try:
-        metrics_path = './model/model_metrics.json'
-        if os.path.exists(metrics_path):
-            with open(metrics_path, 'r') as f:
-                metrics = json.load(f)
-            return jsonify({
-                'status': 'success',
-                'metrics': metrics
-            })
-        else:
+        baseline_metrics = None
+        proposed_metrics = None
+        
+        # Load baseline metrics
+        baseline_path = './model/model_metrics.json'
+        if os.path.exists(baseline_path):
+            with open(baseline_path, 'r') as f:
+                baseline_metrics = json.load(f)
+        
+        # Load proposed metrics
+        proposed_path = './model/proposed_model_metrics.json'
+        if os.path.exists(proposed_path):
+            with open(proposed_path, 'r') as f:
+                proposed_metrics = json.load(f)
+        
+        if baseline_metrics is None and proposed_metrics is None:
             return jsonify({
                 'status': 'not_found',
-                'message': 'Metrics file not found. Train the model first to generate metrics.'
+                'message': 'No metrics files found. Train the models first to generate metrics.'
             }), 404
+        
+        return jsonify({
+            'status': 'success',
+            'baseline': baseline_metrics,
+            'proposed': proposed_metrics
+        })
     except Exception as e:
         return jsonify({
             'status': 'error',
@@ -443,8 +456,8 @@ if __name__ == '__main__':
     print("\n" + "="*80)
     print("🚀 DUAL MODEL SARCASM DETECTION API")
     print("="*80)
-    print(f"✓ Proposed Model: {'Loaded' if proposed_model else 'Not Loaded'}")
-    print(f"✓ Baseline Model: {'Loaded' if baseline_model else 'Not Loaded'}")
+    print(f" Proposed Model: {'Loaded' if proposed_model else 'Not Loaded'}")
+    print(f" Baseline Model: {'Loaded' if baseline_model else 'Not Loaded'}")
     print("\nAvailable Endpoints:")
     print("  POST /api/predict              - Use proposed model (or specify 'model' param)")
     print("  POST /api/predict/proposed     - Use proposed model only")

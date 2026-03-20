@@ -45,20 +45,20 @@ try:
     # Save as Keras format (.keras) - native Keras 3 format
     print("\n\nSaving as Keras format...")
     model.save('./model/model.keras')
-    print("✓ Keras model saved to ./model/model.keras")
+    print(" Keras model saved to ./model/model.keras")
     
     # Export as SavedModel to a directory (Keras 3 style)
     print("\nExporting as TensorFlow SavedModel...")
     model.export('./model/saved_model')
-    print("✓ SavedModel exported to ./model/saved_model/")
+    print("SavedModel exported to ./model/saved_model/")
     
-    print("\n✅ Conversion complete!")
+    print("\nConversion complete!")
     print("\nYou can now use:")
     print("  - ./model/model.keras (recommended - native Keras 3)")
     print("  - ./model/saved_model/ (TensorFlow SavedModel format)")
     
 except Exception as e:
-    print(f"\n❌ Error: {e}")
+    print(f"\n Error: {e}")
     print("\nIf the model can't be loaded, you may need to provide:")
     print("  1. The model architecture code")
     print("  2. The training script")

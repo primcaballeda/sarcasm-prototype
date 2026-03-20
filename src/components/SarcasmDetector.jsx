@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import React, { useState, useEffect } from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import './SarcasmDetector.css';
 
 const SarcasmDetector = () => {
@@ -10,173 +10,88 @@ const SarcasmDetector = () => {
   const [datasetResults, setDatasetResults] = useState([]);
   const [processingDataset, setProcessingDataset] = useState(false);
   const [showAllResults, setShowAllResults] = useState(false);
+  const [modelMetrics, setModelMetrics] = useState(null);
+  const [metricsLoading, setMetricsLoading] = useState(true);
 
-  // Model performance comparison data
-  const modelPerformanceData = [
-    { metric: 'Accuracy', baseline: 91.76, proposed: 92.80 },
-    { metric: 'Precision', baseline: 87.56, proposed: 89.15 },
-    { metric: 'Sensitivity', baseline: 90.27, proposed: 91.75 },
-    { metric: 'F1-Score', baseline: 89.25, proposed: 90.82 },
-    { metric: 'Specificity', baseline: 90.38, proposed: 91.85 },
-  ];
-
-  const trainingHistoryData = [
-    { epoch: 1, baselineAcc: 75.2, proposedAcc: 77.5, baselineLoss: 0.58, proposedLoss: 0.52 },
-    { epoch: 2, baselineAcc: 80.5, proposedAcc: 82.8, baselineLoss: 0.48, proposedLoss: 0.42 },
-    { epoch: 3, baselineAcc: 84.8, proposedAcc: 86.9, baselineLoss: 0.41, proposedLoss: 0.35 },
-    { epoch: 4, baselineAcc: 87.3, proposedAcc: 89.1, baselineLoss: 0.36, proposedLoss: 0.30 },
-    { epoch: 5, baselineAcc: 89.1, proposedAcc: 90.6, baselineLoss: 0.33, proposedLoss: 0.27 },
-    { epoch: 6, baselineAcc: 90.2, proposedAcc: 91.5, baselineLoss: 0.31, proposedLoss: 0.25 },
-    { epoch: 7, baselineAcc: 90.9, proposedAcc: 92.1, baselineLoss: 0.29, proposedLoss: 0.23 },
-    { epoch: 8, baselineAcc: 91.76, proposedAcc: 92.80, baselineLoss: 0.28, proposedLoss: 0.22 },
-  ];
-
-  // Confusion Matrix Data (Baseline Model) - Based on 2000 samples
-  // Accuracy: 91.76%, Precision: 87.56%, Sensitivity: 90.27%, Specificity: 90.38%
-  const confusionMatrixBaseline = {
-    truePositive: 901,  // True Positives (correctly identified sarcasm)
-    falsePositive: 128,  // False Positives (incorrectly identified as sarcasm)
-    falseNegative: 97,   // False Negatives (missed sarcasm)
-    trueNegative: 874    // True Negatives (correctly identified non-sarcasm)
-  };
-  // Calculations: Sensitivity=901/(901+97)=90.28%, Precision=901/(901+128)=87.56%, 
-  // Specificity=874/(874+128)=87.22%, Accuracy=(901+874)/2000=88.75%
-
-  // Confusion Matrix Data (Proposed Model) - Based on 2000 samples
-  // Accuracy: 92.80%, Precision: 89.15%, Sensitivity: 91.75%, Specificity: 91.85%
-  const confusionMatrixProposed = {
-    truePositive: 915,   // True Positives (correctly identified sarcasm)
-    falsePositive: 111,  // False Positives (incorrectly identified as sarcasm)
-    falseNegative: 82,   // False Negatives (missed sarcasm)
-    trueNegative: 892    // True Negatives (correctly identified non-sarcasm)
-  };
-  // Calculations: Sensitivity=915/(915+82)=91.78%, Precision=915/(915+111)=89.18%,
-  // Specificity=892/(892+111)=88.93%, Accuracy=(915+892)/2000=90.35%
-
-  // Simulated model detection with different characteristics
-  const detectSarcasm = (inputText, model) => {
-    const lowerText = inputText.toLowerCase();
-    
-    // Strong sarcasm indicators (negative context with positive words)
-    const sarcasmKeywords = [
-      'yeah right',
-      'oh great',
-      'oh wow',
-      'just what i needed',
-      'how wonderful',
-      'totally going to work'
-    ];
-    
-    // Words that can be sarcastic in certain contexts
-    const ambiguousPositive = ['great', 'wonderful', 'brilliant', 'perfect', 'fantastic', 'amazing'];
-    
-    // Sincere positive indicators
-    const sincereWords = ['appreciate', 'thank', 'grateful', 'opportunity', 'helpful'];
-    
-    const hasExclamation = (inputText.match(/!/g) || []).length >= 1;
-    const hasEllipsis = inputText.includes('...');
-    
-    let sarcasmScore = 0;
-    let indicators = [];
-    
-    // Check for strong sarcasm phrases
-    sarcasmKeywords.forEach(keyword => {
-      if (lowerText.includes(keyword)) {
-        sarcasmScore += 40;
-        indicators.push(`Sarcastic phrase detected: "${keyword}"`);
-      }
-    });
-    
-    // Check for sincere expressions
-    let isSincere = false;
-    sincereWords.forEach(word => {
-      if (lowerText.includes(word)) {
-        sarcasmScore -= 30;
-        isSincere = true;
-        indicators.push(`Sincere expression: "${word}"`);
-      }
-    });
-    
-    // Check for ambiguous positive words (only sarcastic with certain punctuation)
-    if (!isSincere) {
-      ambiguousPositive.forEach(word => {
-        if (lowerText.includes(word)) {
-          if (hasExclamation || hasEllipsis) {
-            sarcasmScore += 20;
-            indicators.push(`Potentially sarcastic: "${word}" with emphasis`);
-          }
+  // Fetch model metrics on component mount
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/metrics');
+        if (response.ok) {
+          const data = await response.json();
+          setModelMetrics(data);
+          console.log('✅ Fetched real metrics:', data);
+        } else {
+          console.warn('⚠️ Could not fetch metrics:', response.status);
         }
-      });
-    }
-    
-    // Check punctuation patterns
-    if (hasExclamation && !isSincere) {
-      sarcasmScore += 10;
-      indicators.push('Exclamation mark detected');
-    }
-    
-    if (hasEllipsis) {
-      sarcasmScore += 12;
-      indicators.push('Ellipsis (trailing off pattern)');
-    }
-    
-    // Check for ALL CAPS words
-    const words = inputText.split(' ');
-    const capsWords = words.filter(word => 
-      word.length > 2 && word === word.toUpperCase() && /[A-Z]/.test(word)
-    );
-    
-    if (capsWords.length > 0) {
-      sarcasmScore += 10;
-      indicators.push(`Emphasis with caps: ${capsWords.join(', ')}`);
-    }
-    
-    // Normalize score to 0-100
-    sarcasmScore = Math.max(0, Math.min(100, sarcasmScore));
-    
-    // Determine result based on model
-    let isSarcastic;
-    let confidence;
-    
-    // Add some randomness for realism (between -3 and +3)
-    const randomAdjustment = (Math.random() * 6) - 3;
-    
-    // Proposed model (BERT+CNN+BiLSTM+MHA) has better performance
-    if (model === 'proposed') {
-      // Determine if sarcastic based on score threshold
-      isSarcastic = sarcasmScore >= 30;
-      
-      if (isSarcastic) {
-        confidence = Math.min(Math.max(65 + (sarcasmScore * 0.3) + randomAdjustment, 70), 95);
-      } else {
-        confidence = Math.min(Math.max(65 + ((100 - sarcasmScore) * 0.3) + randomAdjustment, 70), 95);
+      } catch (error) {
+        console.error('❌ Error fetching metrics:', error);
+      } finally {
+        setMetricsLoading(false);
       }
-      
-      // Add contextual understanding indicators
-      indicators.push('BERT contextual embeddings analyzed');
-      indicators.push('Multi-head attention patterns detected');
-    } else {
-      // Baseline model (GloVe+CNN+BiLSTM+Attention)
-      isSarcastic = sarcasmScore >= 35;
-      
-      if (isSarcastic) {
-        confidence = Math.min(Math.max(60 + (sarcasmScore * 0.25) + randomAdjustment, 65), 92);
-      } else {
-        confidence = Math.min(Math.max(60 + ((100 - sarcasmScore) * 0.25) + randomAdjustment, 65), 92);
-      }
-      
-      indicators.push('GloVe embeddings processed');
-      indicators.push('Single attention layer applied');
-    }
-    
-    return {
-      isSarcastic,
-      confidence: Math.round(confidence * 10) / 10,
-      indicators: indicators.length > 0 ? indicators : ['No strong sarcasm indicators found'],
-      model: model === 'baseline' ? 'GloVe+CNN+BiLSTM+Attention' : 'BERT+CNN+BiLSTM+MHA',
-      processingTime: model === 'baseline' ? '125ms' : '187ms'
     };
+    
+    fetchMetrics();
+  }, []);
+
+  // Build performance data from real metrics API
+  const buildPerformanceData = () => {
+    const baseline = modelMetrics?.baseline?.performance_metrics;
+    const proposed = modelMetrics?.proposed?.performance_metrics;
+
+    return [
+      { 
+        metric: 'Accuracy', 
+        baseline: baseline ? (baseline.accuracy * 100).toFixed(2) : null,
+        proposed: proposed ? (proposed.accuracy * 100).toFixed(2) : null
+      },
+      { 
+        metric: 'Precision', 
+        baseline: baseline ? (baseline.precision * 100).toFixed(2) : null,
+        proposed: proposed ? (proposed.precision * 100).toFixed(2) : null
+      },
+      { 
+        metric: 'Sensitivity', 
+        baseline: baseline ? (baseline.sensitivity_recall * 100).toFixed(2) : null,
+        proposed: proposed ? (proposed.sensitivity_recall * 100).toFixed(2) : null
+      },
+      { 
+        metric: 'F1-Score', 
+        baseline: baseline ? (baseline.f1_score * 100).toFixed(2) : null,
+        proposed: proposed ? (proposed.f1_score * 100).toFixed(2) : null
+      },
+      { 
+        metric: 'Specificity', 
+        baseline: baseline ? (baseline.specificity * 100).toFixed(2) : null,
+        proposed: proposed ? (proposed.specificity * 100).toFixed(2) : null
+      },
+    ];
   };
+
+  const modelPerformanceData = buildPerformanceData();
+
+  // Confusion Matrix Data (Baseline Model) - Based on 1878 test samples
+  // Accuracy: 70.34%, Precision: 69.92%, Sensitivity: 70.15%, Specificity: 70.53%
+  const confusionMatrixBaseline = {
+    truePositive: 651,  // True Positives (correctly identified sarcasm)
+    falsePositive: 280,  // False Positives (incorrectly identified as sarcasm)
+    falseNegative: 277,   // False Negatives (missed sarcasm)
+    trueNegative: 670    // True Negatives (correctly identified non-sarcasm)
+  };
+  // Calculations: Sensitivity=651/(651+277)=70.15%, Precision=651/(651+280)=69.92%, 
+  // Specificity=670/(670+280)=70.53%, Accuracy=(651+670)/1878=70.34%
+
+  // Confusion Matrix Data (Proposed Model) - Based on 1878 test samples
+  // Accuracy: 75.83%, Precision: 77.65%, Sensitivity: 72.52%, Specificity: 79.13%
+  const confusionMatrixProposed = {
+    truePositive: 681,   // True Positives (correctly identified sarcasm)
+    falsePositive: 196,  // False Positives (incorrectly identified as sarcasm)
+    falseNegative: 258,   // False Negatives (missed sarcasm)
+    trueNegative: 743    // True Negatives (correctly identified non-sarcasm)
+  };
+  // Calculations: Sensitivity=681/(681+258)=72.52%, Precision=681/(681+196)=77.65%,
+  // Specificity=743/(743+196)=79.13%, Accuracy=(681+743)/1878=75.83%
 
   const handleAnalyze = async () => {
     if (!text.trim()) {
@@ -209,7 +124,7 @@ const SarcasmDetector = () => {
         isSarcastic: apiResult.baseline.isSarcastic,
         confidence: apiResult.baseline.confidence,
         indicators: [
-          '✓ Real Keras model loaded',
+          'Real Keras model loaded',
           'GloVe embeddings processed',
           'BiLSTM with attention mechanism',
           `Sarcasm probability: ${apiResult.baseline.probabilities?.sarcastic}%`,
@@ -224,7 +139,7 @@ const SarcasmDetector = () => {
         isSarcastic: apiResult.proposed.isSarcastic,
         confidence: apiResult.proposed.confidence,
         indicators: [
-          '✓ Real PyTorch model loaded',
+          'Real PyTorch model loaded',
           'BERT contextual embeddings analyzed',
           'CNN + BiLSTM architecture',
           'Multi-head attention patterns detected',
@@ -244,20 +159,7 @@ const SarcasmDetector = () => {
       setAnalyzing(false);
     } catch (error) {
       console.error('❌ Error calling API:', error);
-      console.warn('⚠️ Falling back to simulated detection');
-      
-      // Fallback to static detection if API fails
-      const baselineDetection = detectSarcasm(text, 'baseline');
-      const proposedDetection = detectSarcasm(text, 'proposed');
-      
-      // Add error indicator
-      proposedDetection.indicators.push('⚠️ Using fallback detection (API unavailable)');
-      baselineDetection.indicators.push('⚠️ Using fallback detection (API unavailable)');
-      
-      setResults({
-        baseline: baselineDetection,
-        proposed: proposedDetection
-      });
+      alert('Error: Failed to connect to backend models. Please ensure:\n1. Backend server is running (python app.py)\n2. Models are loaded (model.h5 and sarcasm_model.pt exist)\n3. API endpoints are accessible');
       setAnalyzing(false);
     }
   };
@@ -390,7 +292,7 @@ const SarcasmDetector = () => {
     setShowAllResults(false); // Reset to show limited results
     
     const results = [];
-    const batchSize = 50; // Process in batches to avoid overwhelming the API
+    const batchSize = 10; 
     
     try {
       // Process dataset in batches
@@ -408,23 +310,6 @@ const SarcasmDetector = () => {
         let baselinePredictions = [];
         
         try {
-          // Proposed model predictions
-          const proposedResponse = await fetch('http://localhost:5000/api/predict_batch', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ texts: texts, model: 'proposed' })
-          });
-          
-          if (proposedResponse.ok) {
-            const proposedResult = await proposedResponse.json();
-            proposedPredictions = proposedResult.results || [];
-            console.log('✅ Proposed API SUCCESS - got', proposedPredictions.length, 'predictions');
-          } else {
-            throw new Error('Proposed API request failed');
-          }
-          
           // Baseline model predictions
           const baselineResponse = await fetch('http://localhost:5000/api/predict_batch', {
             method: 'POST',
@@ -441,25 +326,28 @@ const SarcasmDetector = () => {
           } else {
             throw new Error('Baseline API request failed');
           }
+          
+          // Proposed model predictions
+          const proposedResponse = await fetch('http://localhost:5000/api/predict_batch', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ texts: texts, model: 'proposed' })
+          });
+          
+          if (proposedResponse.ok) {
+            const proposedResult = await proposedResponse.json();
+            proposedPredictions = proposedResult.results || [];
+            console.log('✅ Proposed API SUCCESS - got', proposedPredictions.length, 'predictions');
+          } else {
+            throw new Error('Proposed API request failed');
+          }
         } catch (error) {
-          console.error('❌ API ERROR - USING FALLBACK:', error);
-          console.error('Error details:', error.message);
-          // Fallback to static detection if API fails
-          console.warn('⚠️ Using rule-based fallback detection instead of trained models');
-          proposedPredictions = batch.map(item => {
-            const result = detectSarcasm(item.text, 'proposed');
-            return {
-              isSarcastic: result.isSarcastic,
-              confidence: result.confidence
-            };
-          });
-          baselinePredictions = batch.map(item => {
-            const result = detectSarcasm(item.text, 'baseline');
-            return {
-              isSarcastic: result.isSarcastic,
-              confidence: result.confidence
-            };
-          });
+          console.error('❌ API ERROR:', error);
+          alert(`Batch processing failed: ${error.message}\n\nMake sure:\n1. Backend is running (python app.py)\n2. Models are loaded in backend\n3. API endpoint /api/predict_batch is working`);
+          setProcessingDataset(false);
+          return;
         }
         
         // Process each item in the batch
@@ -614,20 +502,19 @@ const SarcasmDetector = () => {
           placeholder="Type or paste text to analyze... (e.g., 'Oh great, another meeting!')"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          rows={6}
-        />
-        
+          rows={6} />
+
         <div className="button-group">
-          <button 
+          <button
             className="analyze-btn"
             onClick={handleAnalyze}
             disabled={!text.trim() || analyzing}
           >
             {analyzing ? 'Analyzing...' : 'Detect Sarcasm'}
           </button>
-          
+
           {text && (
-            <button 
+            <button
               className="reset-btn"
               onClick={handleReset}
             >
@@ -640,7 +527,7 @@ const SarcasmDetector = () => {
       {results && (
         <div className="dual-results-section">
           <h2 className="comparison-title">Model Comparison Results</h2>
-          
+
           <div className="models-comparison">
             <div className={`result-section ${results.baseline.isSarcastic ? 'sarcastic' : 'not-sarcastic'}`}>
               <div className="result-header">
@@ -651,16 +538,15 @@ const SarcasmDetector = () => {
                 <div className="model-desc">GloVe + CNN + BiLSTM + Attention</div>
                 <div className="processing-time">Processing time: {results.baseline.processingTime}</div>
               </div>
-              
+
               <div className="confidence-bar">
                 <div className="confidence-label">
                   Confidence: {results.baseline.confidence}%
                 </div>
                 <div className="progress-bar">
-                  <div 
+                  <div
                     className="progress-fill"
-                    style={{ width: `${results.baseline.confidence}%` }}
-                  />
+                    style={{ width: `${results.baseline.confidence}%` }} />
                 </div>
               </div>
 
@@ -683,16 +569,15 @@ const SarcasmDetector = () => {
                 <div className="model-desc">BERT + CNN + BiLSTM + MHA</div>
                 <div className="processing-time">Processing time: {results.proposed.processingTime}</div>
               </div>
-              
+
               <div className="confidence-bar">
                 <div className="confidence-label">
                   Confidence: {results.proposed.confidence}%
                 </div>
                 <div className="progress-bar">
-                  <div 
+                  <div
                     className="progress-fill"
-                    style={{ width: `${results.proposed.confidence}%` }}
-                  />
+                    style={{ width: `${results.proposed.confidence}%` }} />
                 </div>
               </div>
 
@@ -712,25 +597,25 @@ const SarcasmDetector = () => {
       <div className="examples">
         <h3>Try these examples:</h3>
         <div className="example-buttons">
-          <button 
+          <button
             className="example-btn"
             onClick={() => setText("Oh great, another Monday morning meeting!")}
           >
             Example 1
           </button>
-          <button 
+          <button
             className="example-btn"
             onClick={() => setText("Yeah right, like that's ever going to happen...")}
           >
             Example 2
           </button>
-          <button 
+          <button
             className="example-btn"
             onClick={() => setText("I love working on weekends!")}
           >
             Example 3
           </button>
-          <button 
+          <button
             className="example-btn"
             onClick={() => setText("Thank you for your help today.")}
           >
@@ -744,7 +629,7 @@ const SarcasmDetector = () => {
         <p className="dataset-description">
           Upload a CSV file to test both models on multiple text samples simultaneously.
         </p>
-        
+
         <div className="dataset-upload">
           <label htmlFor="file-upload" className="file-upload-label">
             Choose CSV File
@@ -754,9 +639,8 @@ const SarcasmDetector = () => {
             type="file"
             accept=".csv"
             onChange={handleFileUpload}
-            style={{ display: 'none' }}
-          />
-          
+            style={{ display: 'none' }} />
+
           {dataset.length > 0 && (
             <div className="dataset-info">
               <span className="dataset-count">{dataset.length} samples loaded</span>
@@ -785,7 +669,7 @@ GEN,notsarc,3,"Thank you for your help today."`}</pre>
 
         {dataset.length > 0 && (
           <div className="dataset-controls">
-            <button 
+            <button
               className="process-dataset-btn"
               onClick={processDataset}
               disabled={processingDataset}
@@ -798,127 +682,102 @@ GEN,notsarc,3,"Thank you for your help today."`}</pre>
         {datasetResults.length > 0 && !processingDataset && (
           <div className="dataset-results">
             <h3>Dataset Results</h3>
-            
+
             {(() => {
               const stats = calculateDatasetStats();
-              const metrics = calculateDetailedMetrics();
-              
+
               return stats && (
                 <>
-                  {metrics && (
-                    <div className="metrics-comparison">
-                      <h4>Performance Metrics Comparison</h4>
-                      <div className="metrics-table-container">
-                        <table className="metrics-table">
-                          <thead>
-                            <tr>
-                              <th>Metric</th>
-                              <th className="baseline-col">Baseline Model<br/><span className="model-subtitle">GloVe+CNN+BiLSTM+Attention</span></th>
-                              <th className="proposed-col">Proposed Model<br/><span className="model-subtitle">BERT+CNN+BiLSTM+MHA</span></th>
-                              <th>Improvement</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr>
-                              <td className="metric-name">Accuracy</td>
-                              <td className="baseline-value">{metrics.baseline.accuracy}%</td>
-                              <td className="proposed-value">{metrics.proposed.accuracy}%</td>
-                              <td className="improvement-value">
-                                {(parseFloat(metrics.proposed.accuracy) - parseFloat(metrics.baseline.accuracy)) > 0 
-                                  ? `+${(parseFloat(metrics.proposed.accuracy) - parseFloat(metrics.baseline.accuracy)).toFixed(2)}%` 
-                                  : `${(parseFloat(metrics.proposed.accuracy) - parseFloat(metrics.baseline.accuracy)).toFixed(2)}%`}
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className="metric-name">Precision</td>
-                              <td className="baseline-value">{metrics.baseline.precision}%</td>
-                              <td className="proposed-value">{metrics.proposed.precision}%</td>
-                              <td className="improvement-value">
-                                {(parseFloat(metrics.proposed.precision) - parseFloat(metrics.baseline.precision)) > 0 
-                                  ? `+${(parseFloat(metrics.proposed.precision) - parseFloat(metrics.baseline.precision)).toFixed(2)}%` 
-                                  : `${(parseFloat(metrics.proposed.precision) - parseFloat(metrics.baseline.precision)).toFixed(2)}%`}
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className="metric-name">Sensitivity</td>
-                              <td className="baseline-value">{metrics.baseline.recall}%</td>
-                              <td className="proposed-value">{metrics.proposed.recall}%</td>
-                              <td className="improvement-value">
-                                {(parseFloat(metrics.proposed.recall) - parseFloat(metrics.baseline.recall)) > 0 
-                                  ? `+${(parseFloat(metrics.proposed.recall) - parseFloat(metrics.baseline.recall)).toFixed(2)}%` 
-                                  : `${(parseFloat(metrics.proposed.recall) - parseFloat(metrics.baseline.recall)).toFixed(2)}%`}
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className="metric-name">F1-Score</td>
-                              <td className="baseline-value">{metrics.baseline.f1Score}%</td>
-                              <td className="proposed-value">{metrics.proposed.f1Score}%</td>
-                              <td className="improvement-value">
-                                {(parseFloat(metrics.proposed.f1Score) - parseFloat(metrics.baseline.f1Score)) > 0 
-                                  ? `+${(parseFloat(metrics.proposed.f1Score) - parseFloat(metrics.baseline.f1Score)).toFixed(2)}%` 
-                                  : `${(parseFloat(metrics.proposed.f1Score) - parseFloat(metrics.baseline.f1Score)).toFixed(2)}%`}
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className="metric-name">Specificity</td>
-                              <td className="baseline-value">{metrics.baseline.specificity}%</td>
-                              <td className="proposed-value">{metrics.proposed.specificity}%</td>
-                              <td className="improvement-value">
-                                {(parseFloat(metrics.proposed.specificity) - parseFloat(metrics.baseline.specificity)) > 0 
-                                  ? `+${(parseFloat(metrics.proposed.specificity) - parseFloat(metrics.baseline.specificity)).toFixed(2)}%` 
-                                  : `${(parseFloat(metrics.proposed.specificity) - parseFloat(metrics.baseline.specificity)).toFixed(2)}%`}
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                      
-                      <div className="confusion-matrices-comparison">
-                        <div className="confusion-matrix-side">
-                          <h5>Baseline Model - Confusion Matrix</h5>
-                          <div className="mini-confusion-matrix">
-                            <div className="matrix-row">
-                              <div className="matrix-cell-mini header-cell"></div>
-                              <div className="matrix-cell-mini header-cell">Pred: Sarc</div>
-                              <div className="matrix-cell-mini header-cell">Pred: Not Sarc</div>
-                            </div>
-                            <div className="matrix-row">
-                              <div className="matrix-cell-mini header-cell">Actual: Sarc</div>
-                              <div className="matrix-cell-mini tp-cell">TP: {metrics.baseline.confusion.tp}</div>
-                              <div className="matrix-cell-mini fn-cell">FN: {metrics.baseline.confusion.fn}</div>
-                            </div>
-                            <div className="matrix-row">
-                              <div className="matrix-cell-mini header-cell">Actual: Not Sarc</div>
-                              <div className="matrix-cell-mini fp-cell">FP: {metrics.baseline.confusion.fp}</div>
-                              <div className="matrix-cell-mini tn-cell">TN: {metrics.baseline.confusion.tn}</div>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="confusion-matrix-side">
-                          <h5>Proposed Model - Confusion Matrix</h5>
-                          <div className="mini-confusion-matrix">
-                            <div className="matrix-row">
-                              <div className="matrix-cell-mini header-cell"></div>
-                              <div className="matrix-cell-mini header-cell">Pred: Sarc</div>
-                              <div className="matrix-cell-mini header-cell">Pred: Not Sarc</div>
-                            </div>
-                            <div className="matrix-row">
-                              <div className="matrix-cell-mini header-cell">Actual: Sarc</div>
-                              <div className="matrix-cell-mini tp-cell">TP: {metrics.proposed.confusion.tp}</div>
-                              <div className="matrix-cell-mini fn-cell">FN: {metrics.proposed.confusion.fn}</div>
-                            </div>
-                            <div className="matrix-row">
-                              <div className="matrix-cell-mini header-cell">Actual: Not Sarc</div>
-                              <div className="matrix-cell-mini fp-cell">FP: {metrics.proposed.confusion.fp}</div>
-                              <div className="matrix-cell-mini tn-cell">TN: {metrics.proposed.confusion.tn}</div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                  <div className="dataset-metrics">
+                    <h4>Performance on Your Dataset</h4>
+                    <div className="metrics-table-container">
+                      <table className="metrics-table">
+                        <thead>
+                          <tr>
+                            <th>Metric</th>
+                            <th className="baseline-col">Baseline Model</th>
+                            <th className="proposed-col">Proposed Model</th>
+                            <th>Improvement</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(() => {
+                            const datasetMetrics = calculateDetailedMetrics();
+                            const rows = datasetMetrics ? [
+                              { metric: 'Accuracy', baseline: datasetMetrics.baseline.accuracy, proposed: datasetMetrics.proposed.accuracy },
+                              { metric: 'Precision', baseline: datasetMetrics.baseline.precision, proposed: datasetMetrics.proposed.precision },
+                              { metric: 'Sensitivity', baseline: datasetMetrics.baseline.recall, proposed: datasetMetrics.proposed.recall },
+                              { metric: 'F1-Score', baseline: datasetMetrics.baseline.f1Score, proposed: datasetMetrics.proposed.f1Score },
+                              { metric: 'Specificity', baseline: datasetMetrics.baseline.specificity, proposed: datasetMetrics.proposed.specificity }
+                            ] : [];
+                            
+                            return rows.map((row, idx) => (
+                              <tr key={idx}>
+                                <td className="metric-name">{row.metric}</td>
+                                <td className="baseline-value">{row.baseline}%</td>
+                                <td className="proposed-value">{row.proposed}%</td>
+                                <td className="improvement-value">
+                                  {(parseFloat(row.proposed) - parseFloat(row.baseline)) > 0
+                                    ? `+${(parseFloat(row.proposed) - parseFloat(row.baseline)).toFixed(2)}%`
+                                    : `${(parseFloat(row.proposed) - parseFloat(row.baseline)).toFixed(2)}%`}
+                                </td>
+                              </tr>
+                            ));
+                          })()}
+                        </tbody>
+                      </table>
                     </div>
-                  )}
-                  
+
+                    {(() => {
+                      const datasetMetrics = calculateDetailedMetrics();
+                      return datasetMetrics ? (
+                        <div className="confusion-matrices-comparison">
+                          <div className="confusion-matrix-side">
+                            <h5>Baseline Model - Confusion Matrix</h5>
+                            <div className="mini-confusion-matrix">
+                              <div className="matrix-row">
+                                <div className="matrix-cell-mini header-cell"></div>
+                                <div className="matrix-cell-mini header-cell">Pred: Sarc</div>
+                                <div className="matrix-cell-mini header-cell">Pred: Not Sarc</div>
+                              </div>
+                              <div className="matrix-row">
+                                <div className="matrix-cell-mini header-cell">Actual: Sarc</div>
+                                <div className="matrix-cell-mini tp-cell">TP: {datasetMetrics.baseline.confusion.tp}</div>
+                                <div className="matrix-cell-mini fn-cell">FN: {datasetMetrics.baseline.confusion.fn}</div>
+                              </div>
+                              <div className="matrix-row">
+                                <div className="matrix-cell-mini header-cell">Actual: Not Sarc</div>
+                                <div className="matrix-cell-mini fp-cell">FP: {datasetMetrics.baseline.confusion.fp}</div>
+                                <div className="matrix-cell-mini tn-cell">TN: {datasetMetrics.baseline.confusion.tn}</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="confusion-matrix-side">
+                            <h5>Proposed Model - Confusion Matrix</h5>
+                            <div className="mini-confusion-matrix">
+                              <div className="matrix-row">
+                                <div className="matrix-cell-mini header-cell"></div>
+                                <div className="matrix-cell-mini header-cell">Pred: Sarc</div>
+                                <div className="matrix-cell-mini header-cell">Pred: Not Sarc</div>
+                              </div>
+                              <div className="matrix-row">
+                                <div className="matrix-cell-mini header-cell">Actual: Sarc</div>
+                                <div className="matrix-cell-mini tp-cell">TP: {datasetMetrics.proposed.confusion.tp}</div>
+                                <div className="matrix-cell-mini fn-cell">FN: {datasetMetrics.proposed.confusion.fn}</div>
+                              </div>
+                              <div className="matrix-row">
+                                <div className="matrix-cell-mini header-cell">Actual: Not Sarc</div>
+                                <div className="matrix-cell-mini fp-cell">FP: {datasetMetrics.proposed.confusion.fp}</div>
+                                <div className="matrix-cell-mini tn-cell">TN: {datasetMetrics.proposed.confusion.tn}</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
+
                   <div className="dataset-stats-header">
                     <h4>Baseline Model Results</h4>
                   </div>
@@ -948,7 +807,7 @@ GEN,notsarc,3,"Thank you for your help today."`}</pre>
                       </>
                     )}
                   </div>
-                  
+
                   <div className="dataset-stats-header">
                     <h4>Proposed Model Results</h4>
                   </div>
@@ -981,7 +840,7 @@ GEN,notsarc,3,"Thank you for your help today."`}</pre>
                 </>
               );
             })()}
-            
+
             <div className="results-table-container">
               <table className="results-table">
                 <thead>
@@ -1043,10 +902,10 @@ GEN,notsarc,3,"Thank you for your help today."`}</pre>
                 </tbody>
               </table>
             </div>
-            
+
             {datasetResults.length > 15 && (
               <div className="show-all-container">
-                <button 
+                <button
                   className="show-all-btn"
                   onClick={() => setShowAllResults(!showAllResults)}
                 >
@@ -1060,161 +919,145 @@ GEN,notsarc,3,"Thank you for your help today."`}</pre>
 
       <div className="performance-graphs">
         <h2>Model Performance Comparison</h2>
-        
-        <div className="graph-container">
-          <div className="graph-card">
-            <h3>Performance Metrics</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={modelPerformanceData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="metric" />
-                <YAxis domain={[0, 100]} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="baseline" fill="#ef4444" name="Baseline (GloVe+CNN+BiLSTM)" />
-                <Bar dataKey="proposed" fill="#10b981" name="Proposed (BERT+CNN+BiLSTM+MHA)" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
 
-          <div className="graph-card">
-            <h3>Training History - Accuracy</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={trainingHistoryData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="epoch" label={{ value: 'Epoch', position: 'insideBottom', offset: -5 }} />
-                <YAxis domain={[60, 95]} label={{ value: 'Accuracy (%)', angle: -90, position: 'insideLeft' }} />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="baselineAcc" stroke="#ef4444" name="Baseline" strokeWidth={2} />
-                <Line type="monotone" dataKey="proposedAcc" stroke="#10b981" name="Proposed" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
+        {metricsLoading ? (
+          <div className="metrics-loading">
+            <p>Loading real model metrics...</p>
           </div>
-
-          <div className="graph-card">
-            <h3>Training History - Loss</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={trainingHistoryData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="epoch" label={{ value: 'Epoch', position: 'insideBottom', offset: -5 }} />
-                <YAxis domain={[0.15, 0.65]} label={{ value: 'Loss', angle: -90, position: 'insideLeft' }} />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="baselineLoss" stroke="#ef4444" name="Baseline" strokeWidth={2} />
-                <Line type="monotone" dataKey="proposedLoss" stroke="#10b981" name="Proposed" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
+        ) : !modelMetrics || (!modelMetrics.baseline && !modelMetrics.proposed) ? (
+          <div className="metrics-error">
+            <p>⚠️ Could not load metrics. Backend may not be running, or metrics files are missing.</p>
+            <p><strong>Ensure:</strong> Backend is running and both model_metrics.json and proposed_model_metrics.json exist in backend/model/</p>
           </div>
+        ) : (
+          <>
+            <div className="metrics-info">
+              {modelMetrics.baseline && <p> Baseline metrics loaded</p>}
+              {modelMetrics.proposed && <p> Proposed metrics loaded</p>}
+            </div>
 
-          <div className="graph-card">
-            <h3>Confusion Matrix - Baseline Model</h3>
-            <div className="confusion-matrix-container">
-              <div className="confusion-matrix">
-                <div className="matrix-cell"></div>
-                <div className="matrix-cell matrix-header">Predicted: Sarcastic</div>
-                <div className="matrix-cell matrix-header">Predicted: Not Sarcastic</div>
-                
-                <div className="matrix-cell matrix-label">Actual: Sarcastic</div>
-                <div className="matrix-cell matrix-value true-positive">
-                  <div className="value">{confusionMatrixBaseline.truePositive}</div>
-                  <div className="label">True Positive</div>
-                </div>
-                <div className="matrix-cell matrix-value false-negative">
-                  <div className="value">{confusionMatrixBaseline.falseNegative}</div>
-                  <div className="label">False Negative</div>
-                </div>
-                
-                <div className="matrix-cell matrix-label">Actual: Not Sarcastic</div>
-                <div className="matrix-cell matrix-value false-positive">
-                  <div className="value">{confusionMatrixBaseline.falsePositive}</div>
-                  <div className="label">False Positive</div>
-                </div>
-                <div className="matrix-cell matrix-value true-negative">
-                  <div className="value">{confusionMatrixBaseline.trueNegative}</div>
-                  <div className="label">True Negative</div>
-                </div>
+            <div className="graph-container">
+              <div className="graph-card">
+                <h3>Performance Metrics</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={modelPerformanceData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="metric" />
+                    <YAxis domain={[0, 100]} />
+                    <Tooltip />
+                    <Legend />
+                    {modelMetrics.baseline && <Bar dataKey="baseline" fill="#ef4444" name="Baseline (GloVe+CNN+BiLSTM)" />}
+                    {modelMetrics.proposed && <Bar dataKey="proposed" fill="#10b981" name="Proposed (BERT+CNN+BiLSTM+MHA)" />}
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
-              
-              <div className="matrix-legend">
-                <div className="legend-item">
-                  <div className="legend-color" style={{background: 'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)'}}></div>
-                  <span className="legend-text">True Positive</span>
-                </div>
-                <div className="legend-item">
-                  <div className="legend-color" style={{background: 'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)'}}></div>
-                  <span className="legend-text">True Negative</span>
-                </div>
-                <div className="legend-item">
-                  <div className="legend-color" style={{background: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)'}}></div>
-                  <span className="legend-text">False Positive</span>
-                </div>
-                <div className="legend-item">
-                  <div className="legend-color" style={{background: 'linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%)'}}></div>
-                  <span className="legend-text">False Negative</span>
-                </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="confusion-matrices-section">
+        <div className="graph-card">
+          <h3>Confusion Matrix - Baseline Model</h3>
+          <div className="confusion-matrix-container">
+            <div className="confusion-matrix">
+              <div className="matrix-cell"></div>
+              <div className="matrix-cell matrix-header">Predicted: Sarcastic</div>
+              <div className="matrix-cell matrix-header">Predicted: Not Sarcastic</div>
+
+              <div className="matrix-cell matrix-label">Actual: Sarcastic</div>
+              <div className="matrix-cell matrix-value true-positive">
+                <div className="value">{confusionMatrixBaseline.truePositive}</div>
+                <div className="label">True Positive</div>
+              </div>
+              <div className="matrix-cell matrix-value false-negative">
+                <div className="value">{confusionMatrixBaseline.falseNegative}</div>
+                <div className="label">False Negative</div>
+              </div>
+
+              <div className="matrix-cell matrix-label">Actual: Not Sarcastic</div>
+              <div className="matrix-cell matrix-value false-positive">
+                <div className="value">{confusionMatrixBaseline.falsePositive}</div>
+                <div className="label">False Positive</div>
+              </div>
+              <div className="matrix-cell matrix-value true-negative">
+                <div className="value">{confusionMatrixBaseline.trueNegative}</div>
+                <div className="label">True Negative</div>
+              </div>
+            </div>
+
+            <div className="matrix-legend">
+              <div className="legend-item">
+                <div className="legend-color" style={{ background: 'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)' }}></div>
+                <span className="legend-text">True Positive</span>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color" style={{ background: 'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)' }}></div>
+                <span className="legend-text">True Negative</span>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color" style={{ background: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)' }}></div>
+                <span className="legend-text">False Positive</span>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color" style={{ background: 'linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%)' }}></div>
+                <span className="legend-text">False Negative</span>
               </div>
             </div>
           </div>
-          
-          <div className="graph-card">
-            <h3>Confusion Matrix - Proposed Model</h3>
-            <div className="confusion-matrix-container">
-              <div className="confusion-matrix">
-                <div className="matrix-cell"></div>
-                <div className="matrix-cell matrix-header">Predicted: Sarcastic</div>
-                <div className="matrix-cell matrix-header">Predicted: Not Sarcastic</div>
-                
-                <div className="matrix-cell matrix-label">Actual: Sarcastic</div>
-                <div className="matrix-cell matrix-value true-positive">
-                  <div className="value">{confusionMatrixProposed.truePositive}</div>
-                  <div className="label">True Positive</div>
-                </div>
-                <div className="matrix-cell matrix-value false-negative">
-                  <div className="value">{confusionMatrixProposed.falseNegative}</div>
-                  <div className="label">False Negative</div>
-                </div>
-                
-                <div className="matrix-cell matrix-label">Actual: Not Sarcastic</div>
-                <div className="matrix-cell matrix-value false-positive">
-                  <div className="value">{confusionMatrixProposed.falsePositive}</div>
-                  <div className="label">False Positive</div>
-                </div>
-                <div className="matrix-cell matrix-value true-negative">
-                  <div className="value">{confusionMatrixProposed.trueNegative}</div>
-                  <div className="label">True Negative</div>
-                </div>
+        </div>
+
+        <div className="graph-card">
+          <h3>Confusion Matrix - Proposed Model</h3>
+          <div className="confusion-matrix-container">
+            <div className="confusion-matrix">
+              <div className="matrix-cell"></div>
+              <div className="matrix-cell matrix-header">Predicted: Sarcastic</div>
+              <div className="matrix-cell matrix-header">Predicted: Not Sarcastic</div>
+
+              <div className="matrix-cell matrix-label">Actual: Sarcastic</div>
+              <div className="matrix-cell matrix-value true-positive">
+                <div className="value">{confusionMatrixProposed.truePositive}</div>
+                <div className="label">True Positive</div>
               </div>
-              
-              <div className="matrix-legend">
-                <div className="legend-item">
-                  <div className="legend-color" style={{background: 'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)'}}></div>
-                  <span className="legend-text">True Positive</span>
-                </div>
-                <div className="legend-item">
-                  <div className="legend-color" style={{background: 'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)'}}></div>
-                  <span className="legend-text">True Negative</span>
-                </div>
-                <div className="legend-item">
-                  <div className="legend-color" style={{background: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)'}}></div>
-                  <span className="legend-text">False Positive</span>
-                </div>
-                <div className="legend-item">
-                  <div className="legend-color" style={{background: 'linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%)'}}></div>
-                  <span className="legend-text">False Negative</span>
-                </div>
+              <div className="matrix-cell matrix-value false-negative">
+                <div className="value">{confusionMatrixProposed.falseNegative}</div>
+                <div className="label">False Negative</div>
+              </div>
+
+              <div className="matrix-cell matrix-label">Actual: Not Sarcastic</div>
+              <div className="matrix-cell matrix-value false-positive">
+                <div className="value">{confusionMatrixProposed.falsePositive}</div>
+                <div className="label">False Positive</div>
+              </div>
+              <div className="matrix-cell matrix-value true-negative">
+                <div className="value">{confusionMatrixProposed.trueNegative}</div>
+                <div className="label">True Negative</div>
+              </div>
+            </div>
+
+            <div className="matrix-legend">
+              <div className="legend-item">
+                <div className="legend-color" style={{ background: 'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)' }}></div>
+                <span className="legend-text">True Positive</span>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color" style={{ background: 'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)' }}></div>
+                <span className="legend-text">True Negative</span>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color" style={{ background: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)' }}></div>
+                <span className="legend-text">False Positive</span>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color" style={{ background: 'linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%)' }}></div>
+                <span className="legend-text">False Negative</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="disclaimer">
-        <p>
-          <strong>Note:</strong> This is a prototype demonstrating model architectures. 
-          A production system would use actual trained models for inference.
-        </p>
-      </div>
     </div>
   );
 };

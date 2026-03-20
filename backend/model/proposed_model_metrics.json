@@ -1,0 +1,36 @@
+{
+    "model_info": {
+        "model_type": 5,
+        "model_name": "sarcasm_model.pt",
+        "architecture": "CNN + BiLSTM + Multi-Head Attention with BERT embeddings",
+        "epochs": 15,
+        "batch_size": 32,
+        "learning_rate": 0.001,
+        "optimizer": "Adam",
+        "bert_model": "bert-base-uncased",
+        "bert_trainable": false,
+        "hidden_units": 128,
+        "num_heads": 8,
+        "dropout_rate": 0.3,
+        "timestamp": "2026-03-17 05:00:23"
+    },
+    "performance_metrics": {
+        "accuracy": 0.7582534611288605,
+        "precision": 0.7765108323831242,
+        "sensitivity_recall": 0.7252396166134185,
+        "specificity": 0.7912673056443025,
+        "f1_score": 0.75,
+        "test_loss": 0.575890969639769
+    },
+    "confusion_matrix": {
+        "true_negatives": 743,
+        "false_positives": 196,
+        "false_negatives": 258,
+        "true_positives": 681
+    },
+    "dataset_info": {
+        "train_samples": 7508,
+        "test_samples": 1878,
+        "vocab_size": 30522
+    }
+}
