@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import './SarcasmDetector.css';
 
+const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || '').replace(/\/$/, '');
+
+const apiUrl = (path) => `${API_BASE_URL}${path}`;
+
 const SarcasmDetector = () => {
   const [text, setText] = useState('');
   const [results, setResults] = useState(null);
@@ -12,12 +16,48 @@ const SarcasmDetector = () => {
   const [showAllResults, setShowAllResults] = useState(false);
   const [modelMetrics, setModelMetrics] = useState(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [uploadStatus, setUploadStatus] = useState({
+    type: 'neutral',
+    message: 'No dataset uploaded yet.',
+    fileName: ''
+  });
+
+  // Validate input text
+  const validateInput = (inputText) => {
+    const trimmedText = inputText.trim();
+    
+    // Check for only numbers (integers)
+    if (/^\d+$/.test(trimmedText)) {
+      return 'Error: Please enter meaningful text, not just numbers.';
+    }
+    
+    // Check for negative numbers
+    if (/^-\d+$/.test(trimmedText)) {
+      return 'Error: Negative numbers are not valid input. Please enter actual text.';
+    }
+    
+    // Check for mostly special characters or gibberish (less than 30% letters)
+    const letterCount = (trimmedText.match(/[a-zA-Z]/g) || []).length;
+    const totalChars = trimmedText.length;
+    if (totalChars > 0 && letterCount / totalChars < 0.3) {
+      return 'Error: Input appears to be random characters or special symbols. Please enter meaningful text.';
+    }
+    
+    // Check for maximum word count (200 words)
+    const wordCount = trimmedText.split(/\s+/).filter(word => word.length > 0).length;
+    if (wordCount > 200) {
+      return `Error: Input exceeds maximum length. You entered ${wordCount} words, but the limit is 200 words.`;
+    }
+    
+    return null;
+  };
 
   // Fetch model metrics on component mount
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/metrics');
+        const response = await fetch(apiUrl('/api/metrics'));
         if (response.ok) {
           const data = await response.json();
           setModelMetrics(data);
@@ -98,13 +138,21 @@ const SarcasmDetector = () => {
       return;
     }
 
+    // Validate input
+    const error = validateInput(text);
+    if (error) {
+      setErrorMessage(error);
+      return;
+    }
+
+    setErrorMessage('');
     setAnalyzing(true);
     
     try {
       console.log('🔍 Calling API with text:', text);
       
       // Call the compare endpoint to get results from BOTH real models
-      const apiResponse = await fetch('http://localhost:5000/api/predict/compare', {
+      const apiResponse = await fetch(apiUrl('/api/predict/compare'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -167,6 +215,7 @@ const SarcasmDetector = () => {
   const handleReset = () => {
     setText('');
     setResults(null);
+    setErrorMessage('');
   };
 
   // Helper function to parse CSV properly handling quoted fields with commas
@@ -186,20 +235,83 @@ const SarcasmDetector = () => {
           inQuotes = !inQuotes;
         }
       } else if (char === ',' && !inQuotes) {
-        result.push(current.trim());
+        result.push(current);
         current = '';
       } else {
         current += char;
       }
     }
     
-    result.push(current.trim());
+    result.push(current);
     return result;
+  };
+
+  // Split CSV content into logical records, preserving newlines inside quoted fields.
+  const splitCSVRecords = (content) => {
+    const records = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < content.length; i++) {
+      const char = content[i];
+      const nextChar = content[i + 1];
+
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          current += '""';
+          i++;
+          continue;
+        }
+        inQuotes = !inQuotes;
+        current += char;
+        continue;
+      }
+
+      if (char === '\n' && !inQuotes) {
+        if (current.trim().length > 0) {
+          records.push(current);
+        }
+        current = '';
+        continue;
+      }
+
+      current += char;
+    }
+
+    if (inQuotes) {
+      throw new Error('CSV contains unclosed quoted text. Please ensure every quoted field has a closing quote.');
+    }
+
+    if (current.trim().length > 0) {
+      records.push(current);
+    }
+
+    return records;
   };
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     if (!file) return;
+
+    const normalizedName = file.name.toLowerCase();
+    if (!normalizedName.endsWith('.csv') && !normalizedName.endsWith('.json')) {
+      setUploadStatus({
+        type: 'error',
+        message: 'Unsupported file type. Please upload a CSV or JSON file.',
+        fileName: file.name
+      });
+      setDataset([]);
+      setDatasetResults([]);
+      setShowAllResults(false);
+      event.target.value = '';
+      return;
+    }
+
+    setUploadStatus({
+      type: 'neutral',
+      message: 'Reading file and validating rows...',
+      fileName: file.name
+    });
 
     const reader = new FileReader();
     
@@ -208,63 +320,85 @@ const SarcasmDetector = () => {
       let parsedData = [];
 
       try {
-        if (file.name.endsWith('.json')) {
+        if (normalizedName.endsWith('.json')) {
           const jsonData = JSON.parse(content);
-          parsedData = Array.isArray(jsonData) ? jsonData : [jsonData];
-          parsedData = parsedData.map((item, index) => ({
-            id: index + 1,
-            text: item.text || item.comment || item.sentence || item['Response Text'] || JSON.stringify(item),
-            label: item.label || item.sarcastic || item.is_sarcastic || item.Label || null
-          }));
-        } else if (file.name.endsWith('.csv')) {
-          // Normalize line endings and split
+          const jsonArray = Array.isArray(jsonData) ? jsonData : [jsonData];
+
+          parsedData = jsonArray.map((item, index) => {
+            const candidateText = item?.text || item?.comment || item?.sentence || item?.['Response Text'] || item?.response || item?.content;
+            if (!candidateText || String(candidateText).trim().length === 0) {
+              return null;
+            }
+
+            return {
+              id: index + 1,
+              text: String(candidateText).trim(),
+              label: item.label || item.sarcastic || item.is_sarcastic || item.Label || null
+            };
+          }).filter(item => item !== null);
+
+          if (parsedData.length === 0) {
+            throw new Error('JSON format is not aligned. Add a text field named text, comment, sentence, response, content, or Response Text.');
+          }
+        } else if (normalizedName.endsWith('.csv')) {
+          // Normalize line endings and split into records (supports multiline quoted text)
           const normalizedContent = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-          const lines = normalizedContent.split('\n').filter(line => line.trim());
+          const records = splitCSVRecords(normalizedContent);
+          const expectedHeaders = ['corpus', 'label', 'id', 'response text'];
           
-          if (lines.length < 2) {
+          if (records.length < 2) {
             throw new Error('CSV file must have at least a header row and one data row');
           }
           
-          const headers = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase().replace(/^"|"$/g, ''));
+          const headers = parseCSVLine(records[0]).map(h => h.trim().toLowerCase().replace(/^"|"$/g, ''));
+
+          if (headers.length !== expectedHeaders.length || !expectedHeaders.every((header, idx) => headers[idx] === header)) {
+            throw new Error('CSV format is not aligned. Expected exact header order: Corpus,Label,ID,Response Text');
+          }
           
           console.log('CSV Headers:', headers);
-          console.log('Total lines:', lines.length);
+          console.log('Total records:', records.length);
           
-          parsedData = lines.slice(1).map((line, index) => {
-            const values = parseCSVLine(line).map(v => v.replace(/^"|"$/g, '').trim());
-            
-            // Skip if this row looks like a header row (contains words like "corpus", "label", "text")
-            const firstValue = values[0]?.toLowerCase() || '';
-            if (firstValue === 'corpus' || firstValue === 'label' || firstValue === 'id' || 
-                values.join('').toLowerCase().includes('response text')) {
-              console.log('Skipping duplicate header row:', values);
-              return null;
+          parsedData = records.slice(1).map((line, index) => {
+            const rowNumber = index + 2;
+            const values = parseCSVLine(line);
+            const normalizedValues = values.map(v => v.trim());
+
+            if (values.length !== expectedHeaders.length) {
+              throw new Error(`Row ${rowNumber} has ${values.length} columns. Expected exactly ${expectedHeaders.length} columns.`);
             }
             
-            const textIndex = headers.findIndex(h => 
-              h.includes('text') || h.includes('comment') || h.includes('sentence') || h.includes('response')
-            );
-            const labelIndex = headers.findIndex(h => h.includes('label') || h.includes('sarcastic') || h.includes('sarcasm'));
-            const idIndex = headers.findIndex(h => h.includes('id'));
-            
-            const text = (textIndex >= 0 ? values[textIndex] : values[values.length - 1]) || '';
-            const originalId = idIndex >= 0 ? values[idIndex] : (index + 1);
-            let label = null;
-            
-            if (labelIndex >= 0 && values[labelIndex]) {
-              const labelValue = values[labelIndex].toLowerCase().trim();
-              label = (labelValue === '1' || labelValue === 'true' || 
-                      labelValue === 'sarcastic' || labelValue === 'sarc') ? true :
-                     (labelValue === '0' || labelValue === 'false' || 
-                      labelValue === 'notsarc' || labelValue === 'not sarcastic') ? false : null;
+            const normalizedLowerValues = normalizedValues.map(v => v.toLowerCase());
+            const isDuplicateHeader = normalizedValues.length === expectedHeaders.length &&
+              expectedHeaders.every((header, idx) => normalizedLowerValues[idx] === header);
+
+            if (isDuplicateHeader) {
+              throw new Error(`Row ${rowNumber} appears to be a duplicate header row. Remove extra headers from the data section.`);
+            }
+
+            const corpus = normalizedValues[0];
+            const labelValue = normalizedValues[1].toLowerCase();
+            const originalId = normalizedValues[2];
+            const text = values[3];
+
+            if (!corpus || !labelValue || !originalId || !text) {
+              throw new Error(`Row ${rowNumber} is incomplete. All columns (Corpus, Label, ID, Response Text) are required.`);
+            }
+
+            if (labelValue !== 'sarc' && labelValue !== 'notsarc') {
+              throw new Error(`Row ${rowNumber} has invalid Label "${values[1]}". Use only sarc or notsarc.`);
+            }
+
+            if (!/^\d+$/.test(originalId)) {
+              throw new Error(`Row ${rowNumber} has invalid ID "${originalId}". ID must be a number.`);
             }
             
             return {
               id: originalId,
               text: text,
-              label: label
+              label: labelValue === 'sarc'
             };
-          }).filter(item => item !== null && item.text && item.text.length > 0);
+          });
           
           console.log('Parsed data count:', parsedData.length);
           
@@ -275,9 +409,26 @@ const SarcasmDetector = () => {
 
         setDataset(parsedData);
         setDatasetResults([]);
+        setShowAllResults(false);
+
+        let statusType = 'success';
+        let statusMessage = `Loaded ${parsedData.length} sample${parsedData.length === 1 ? '' : 's'}. Click "Process Dataset" to run both models.`;
+
+        setUploadStatus({
+          type: statusType,
+          message: statusMessage,
+          fileName: file.name
+        });
       } catch (error) {
         console.error('Parse error:', error);
-        alert(`Error parsing file: ${error.message}\n\nExpected CSV format:\nCorpus,Label,ID,Response Text\nGEN,notsarc,1,"Sample text here"\n\nMake sure your file has proper headers and data rows.`);
+        setUploadStatus({
+          type: 'error',
+          message: `File format not aligned: ${error.message}`,
+          fileName: file.name
+        });
+        setDataset([]);
+        setDatasetResults([]);
+        setShowAllResults(false);
       }
     };
 
@@ -311,7 +462,7 @@ const SarcasmDetector = () => {
         
         try {
           // Baseline model predictions
-          const baselineResponse = await fetch('http://localhost:5000/api/predict_batch', {
+          const baselineResponse = await fetch(apiUrl('/api/predict_batch'), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -328,7 +479,7 @@ const SarcasmDetector = () => {
           }
           
           // Proposed model predictions
-          const proposedResponse = await fetch('http://localhost:5000/api/predict_batch', {
+          const proposedResponse = await fetch(apiUrl('/api/predict_batch'), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -399,6 +550,11 @@ const SarcasmDetector = () => {
     setDataset([]);
     setDatasetResults([]);
     setShowAllResults(false);
+    setUploadStatus({
+      type: 'neutral',
+      message: 'Dataset cleared. Upload a CSV or JSON file to start again.',
+      fileName: ''
+    });
   };
 
   const calculateDatasetStats = () => {
@@ -499,10 +655,16 @@ const SarcasmDetector = () => {
       <div className="input-section">
         <textarea
           className="text-input"
-          placeholder="Type or paste text to analyze... (e.g., 'Oh great, another meeting!')"
+          placeholder="Type or paste text to analyze... (e.g., 'Oh great, another meeting!') [Max 200 words]"
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={6} />
+
+        <div className="word-counter">
+          <span className={text.trim().split(/\s+/).filter(w => w.length > 0).length > 200 ? 'over-limit' : ''}>
+            {text.trim().split(/\s+/).filter(w => w.length > 0).length} / 200 words
+          </span>
+        </div>
 
         <div className="button-group">
           <button
@@ -522,6 +684,12 @@ const SarcasmDetector = () => {
             </button>
           )}
         </div>
+
+        {errorMessage && (
+          <div className="error-message">
+            {errorMessage}
+          </div>
+        )}
       </div>
 
       {results && (
@@ -627,19 +795,48 @@ const SarcasmDetector = () => {
       <div className="dataset-section">
         <h2>Upload Dataset for Batch Testing</h2>
         <p className="dataset-description">
-          Upload a CSV file to test both models on multiple text samples simultaneously.
+          Use the guided steps below to compare both models on many text samples at once.
         </p>
+
+        <div className="upload-steps">
+          <div className={`upload-step ${dataset.length === 0 ? 'active' : 'completed'}`}>
+            <span className="step-number">1</span>
+            <div>
+              <h4>Select a file</h4>
+              <p>Upload a CSV or JSON file with at least one text field.</p>
+            </div>
+          </div>
+          <div className={`upload-step ${dataset.length > 0 && datasetResults.length === 0 ? 'active' : datasetResults.length > 0 ? 'completed' : ''}`}>
+            <span className="step-number">2</span>
+            <div>
+              <h4>Confirm loaded samples</h4>
+              <p>Check sample count and clear/re-upload if needed.</p>
+            </div>
+          </div>
+          <div className={`upload-step ${processingDataset || datasetResults.length > 0 ? 'active' : ''}`}>
+            <span className="step-number">3</span>
+            <div>
+              <h4>Process dataset</h4>
+              <p>Run predictions and view side-by-side model performance.</p>
+            </div>
+          </div>
+        </div>
 
         <div className="dataset-upload">
           <label htmlFor="file-upload" className="file-upload-label">
-            Choose CSV File
+            Choose Dataset File
           </label>
           <input
             id="file-upload"
             type="file"
-            accept=".csv"
+            accept=".csv,.json"
             onChange={handleFileUpload}
             style={{ display: 'none' }} />
+
+          <div className={`upload-status ${uploadStatus.type}`}>
+            <strong>Status:</strong> {uploadStatus.message}
+            {uploadStatus.fileName && <span className="upload-file-name"> File: {uploadStatus.fileName}</span>}
+          </div>
 
           {dataset.length > 0 && (
             <div className="dataset-info">
@@ -652,8 +849,16 @@ const SarcasmDetector = () => {
         </div>
 
         <div className="format-info">
+          <div className="format-quick-guide">
+            <p><strong>Quick format guide</strong></p>
+            <ul>
+              <li>CSV headers can include text/comment/sentence/response and optional label/id columns.</li>
+              <li>JSON supports either an array of objects or a single object.</li>
+              <li>Label values accepted: sarc/notsarc, sarcastic/not sarcastic, 1/0, true/false.</li>
+            </ul>
+          </div>
           <details>
-            <summary>Expected File Format</summary>
+            <summary>View a full sample file</summary>
             <div className="format-examples">
               <div className="format-example">
                 <strong>CSV Format:</strong>

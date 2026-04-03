@@ -67,7 +67,7 @@ Copy-Item "path\to\your\model.pt" -Destination "model\sarcasm_model.pt"
 ### 1.6 Start the backend server
 
 ```powershell
-python app.py
+w
 ```
 
 You should see:
@@ -181,6 +181,27 @@ For production deployment, consider:
 3. Using a reverse proxy (nginx) to serve both frontend and backend
 4. Deploying the frontend build to a CDN
 5. Implementing rate limiting and authentication
+
+### Custom Domain Setup for `sarcasm-detector.dev`
+
+If you want the app live on your domain, split it into two parts:
+1. Host the React frontend on Vercel, Netlify, or a similar static host.
+2. Host the Flask backend separately on Render, Railway, Fly.io, or a small VPS.
+
+Recommended setup:
+1. Point `sarcasm-detector.dev` to the frontend host.
+2. Point `api.sarcasm-detector.dev` to the backend host.
+3. Set `REACT_APP_API_BASE_URL` in the frontend deployment to your backend URL, for example `https://api.sarcasm-detector.dev`.
+4. Keep CORS enabled in Flask so the frontend can call the API across subdomains.
+
+DNS checklist:
+1. Add the domain in your frontend host dashboard.
+2. Add the DNS records your host provides. For Vercel, that usually means the apex A record plus a `www` CNAME.
+3. Add a separate DNS record for `api` if your backend uses its own subdomain.
+
+Important:
+1. The frontend currently calls the API with a configurable base URL instead of `localhost`.
+2. Do not deploy the frontend with `REACT_APP_API_BASE_URL` left blank unless the backend is served from the same origin.
 
 ## Support
 
