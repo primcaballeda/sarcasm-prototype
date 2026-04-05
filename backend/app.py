@@ -131,10 +131,17 @@ try:
     model_path = os.path.join(BASE_DIR, 'model', 'sarcasm_model.pt')
     print(f"Model path: {model_path}")
     
-    state_dict = torch.load(model_path, map_location=device)
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Model file not found: {model_path}")
+    
+    try:
+        state_dict = torch.load(model_path, map_location=device, weights_only=False)
+    except TypeError:
+        # Fallback for older PyTorch versions
+        state_dict = torch.load(model_path, map_location=device)
     
     # Handle state dict with 'module.' prefix (from DataParallel)
-    if list(state_dict.keys())[0].startswith('module.'):
+    if state_dict and list(state_dict.keys())[0].startswith('module.'):
         state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
     
     # Load with strict=False to handle minor mismatches

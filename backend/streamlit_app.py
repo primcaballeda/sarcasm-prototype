@@ -457,6 +457,12 @@ def process_dataset() -> None:
             baseline_result = backend_app.predict_baseline(item["text"])
             proposed_result = backend_app.predict_proposed(item["text"])
 
+            # Handle errors from models
+            if 'error' in baseline_result:
+                baseline_result = {'isSarcastic': False, 'confidence': 0.0}
+            if 'error' in proposed_result:
+                proposed_result = {'isSarcastic': False, 'confidence': 0.0}
+
             actual_label = item["label"] if item["label"] is not None else bool(baseline_result.get("isSarcastic", False))
 
             results.append(
