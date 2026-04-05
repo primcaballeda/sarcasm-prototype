@@ -420,6 +420,12 @@ def analyze_text(text: str) -> Optional[str]:
 
     baseline_raw = backend_app.predict_baseline(text)
     proposed_raw = backend_app.predict_proposed(text)
+    
+    # Check for errors in model responses
+    if 'error' in baseline_raw:
+        return f"Baseline model error: {baseline_raw['error']}"
+    if 'error' in proposed_raw:
+        return f"Proposed model error: {proposed_raw['error']}"
 
     st.session_state["results"] = {
         "baseline": format_model_result(baseline_raw, "baseline"),

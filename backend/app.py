@@ -125,13 +125,27 @@ class SarcasmDetectorProposed(nn.Module):
 # Load Proposed Model (PyTorch)
 proposed_model = None
 try:
+    print("Initializing Proposed model architecture...")
     proposed_model = SarcasmDetectorProposed()
-    proposed_model.load_state_dict(torch.load(os.path.join(BASE_DIR, 'model', 'sarcasm_model.pt'), map_location=device))
+    print("Loading proposed model weights...")
+    model_path = os.path.join(BASE_DIR, 'model', 'sarcasm_model.pt')
+    print(f"Model path: {model_path}")
+    
+    state_dict = torch.load(model_path, map_location=device)
+    
+    # Handle state dict with 'module.' prefix (from DataParallel)
+    if list(state_dict.keys())[0].startswith('module.'):
+        state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
+    
+    # Load with strict=False to handle minor mismatches
+    proposed_model.load_state_dict(state_dict, strict=False)
     proposed_model.to(device)
     proposed_model.eval()
-    print(f"Proposed model (PyTorch) loaded successfully on {device}")
+    print(f"✓ Proposed model (PyTorch) loaded successfully on {device}")
 except Exception as e:
-    print(f"Error loading proposed model: {e}")
+    import traceback
+    print(f"✗ Error loading proposed model: {e}")
+    print(f"Traceback: {traceback.format_exc()}")
     proposed_model = None
 
 # ============================================================================
