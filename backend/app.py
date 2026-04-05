@@ -130,22 +130,10 @@ try:
     print("Loading proposed model weights...")
     model_path = os.path.join(BASE_DIR, 'model', 'sarcasm_model.pt')
     print(f"Model path: {model_path}")
-    
-    if not os.path.exists(model_path):
-        raise FileNotFoundError(f"Model file not found: {model_path}")
-    
-    try:
-        state_dict = torch.load(model_path, map_location=device, weights_only=False)
-    except TypeError:
-        # Fallback for older PyTorch versions
-        state_dict = torch.load(model_path, map_location=device)
-    
-    # Handle state dict with 'module.' prefix (from DataParallel)
-    if state_dict and list(state_dict.keys())[0].startswith('module.'):
-        state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
-    
-    # Load with strict=False to handle minor mismatches
-    proposed_model.load_state_dict(state_dict, strict=False)
+    print(f"Model exists: {os.path.exists(model_path)}")
+    state_dict = torch.load(model_path, map_location=device)
+    print(f"Loaded state dict with keys: {list(state_dict.keys())[:5]}...")
+    proposed_model.load_state_dict(state_dict)
     proposed_model.to(device)
     proposed_model.eval()
     print(f"✓ Proposed model (PyTorch) loaded successfully on {device}")
