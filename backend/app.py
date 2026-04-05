@@ -10,6 +10,7 @@ import numpy as np
 import time
 import os
 import pickle
+import sys
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
@@ -467,5 +468,15 @@ if __name__ == '__main__':
     print("  GET  /api/health               - Health check")
     print("  GET  /api/metrics              - Get baseline model performance metrics")
     print("="*80 + "\n")
-    
-    app.run(debug=True, port=5000)
+
+    # Streamlit executes scripts differently; avoid launching Flask there.
+    is_streamlit_runtime = (
+        'streamlit' in sys.modules
+        or os.environ.get('STREAMLIT_SERVER_PORT') is not None
+    )
+
+    if is_streamlit_runtime:
+        print('Streamlit runtime detected. Skipping Flask app.run().')
+    else:
+        port = int(os.environ.get('PORT', 5000))
+        app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
