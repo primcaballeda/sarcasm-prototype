@@ -40,6 +40,23 @@ python app.py
 
 The server will start on `http://localhost:5000`
 
+## Running The Streamlit App (Python-Only UI)
+
+Use this when you want the full UI in Python instead of React.
+
+```bash
+streamlit run streamlit_app.py
+```
+
+The Streamlit app provides the same core workflows as the React version:
+- Single text sarcasm detection with baseline and proposed model comparison
+- Example text shortcuts
+- Dataset upload (CSV/JSON) and batch processing
+- Dataset metrics and confusion matrices
+- Model performance comparison view
+
+When running Streamlit, Flask does not need to be started separately because predictions are called directly from Python.
+
 ## API Endpoints
 
 ### POST /api/predict
