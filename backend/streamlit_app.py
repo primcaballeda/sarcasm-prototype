@@ -367,8 +367,10 @@ def load_model_metrics() -> Dict[str, Any]:
     baseline_metrics = None
     proposed_metrics = None
 
-    baseline_path = os.path.join("model", "model_metrics.json")
-    proposed_path = os.path.join("model", "proposed_model_metrics.json")
+    # Use absolute paths based on this file's location
+    app_dir = os.path.dirname(os.path.abspath(__file__))
+    baseline_path = os.path.join(app_dir, "model", "model_metrics.json")
+    proposed_path = os.path.join(app_dir, "model", "proposed_model_metrics.json")
 
     if os.path.exists(baseline_path):
         with open(baseline_path, "r", encoding="utf-8") as file:
@@ -558,9 +560,9 @@ def main() -> None:
 
         col_a, col_b = st.columns([1, 1])
         with col_a:
-            analyze_clicked = st.button("Detect Sarcasm", use_container_width=True)
+            analyze_clicked = st.button("Detect Sarcasm", width="stretch")
         with col_b:
-            clear_clicked = st.button("Clear", use_container_width=True)
+            clear_clicked = st.button("Clear", width="stretch")
 
         if analyze_clicked:
             message = analyze_text(st.session_state["text"])
@@ -577,7 +579,7 @@ def main() -> None:
         cols = st.columns(4)
         for index, sample in enumerate(EXAMPLES):
             with cols[index]:
-                if st.button(f"Example {index + 1}", key=f"example_{index}", use_container_width=True):
+                if st.button(f"Example {index + 1}", key=f"example_{index}", width="stretch"):
                     st.session_state["text"] = sample
                     st.rerun()
 
@@ -638,10 +640,10 @@ def main() -> None:
         st.write(f"{len(st.session_state['dataset'])} samples loaded")
         col_c, col_d = st.columns([1, 1])
         with col_c:
-            if st.button("Process Dataset", use_container_width=True):
+            if st.button("Process Dataset", width="stretch"):
                 process_dataset()
         with col_d:
-            if st.button("Clear Dataset", use_container_width=True):
+            if st.button("Clear Dataset", width="stretch"):
                 st.session_state["dataset"] = []
                 st.session_state["dataset_results"] = []
                 st.session_state["show_all_results"] = False
@@ -711,7 +713,7 @@ def main() -> None:
                 output["Proposed Match"] = "PASS" if row["proposed"]["correct"] else "FAIL"
             table_rows.append(output)
 
-        st.dataframe(table_rows, use_container_width=True)
+        st.dataframe(table_rows, width="stretch")
 
     st.subheader("Model Performance Comparison")
     metrics = load_model_metrics()

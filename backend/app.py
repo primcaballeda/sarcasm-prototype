@@ -15,6 +15,9 @@ import sys
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
 
+# Compute base directory relative to this file (backend folder)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Device configuration for PyTorch
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"PyTorch device: {device}")
@@ -24,7 +27,7 @@ print(f"PyTorch device: {device}")
 # ============================================================================
 
 # Load BERT tokenizer for Proposed Model
-bert_tokenizer_path = './tokenizer'
+bert_tokenizer_path = os.path.join(BASE_DIR, 'tokenizer')
 try:
     if os.path.exists(bert_tokenizer_path) and os.path.isdir(bert_tokenizer_path):
         bert_tokenizer = BertTokenizer.from_pretrained(bert_tokenizer_path)
@@ -41,7 +44,7 @@ except Exception as e:
 baseline_tokenizer = None
 max_len = 50  # Must match the training parameter
 try:
-    baseline_tokenizer_path = './tokenizer/baseline_tokenizer.pkl'
+    baseline_tokenizer_path = os.path.join(BASE_DIR, 'tokenizer', 'baseline_tokenizer.pkl')
     with open(baseline_tokenizer_path, 'rb') as f:
         baseline_tokenizer = pickle.load(f)
     print(" Baseline (Keras) tokenizer loaded")
@@ -123,7 +126,7 @@ class SarcasmDetectorProposed(nn.Module):
 proposed_model = None
 try:
     proposed_model = SarcasmDetectorProposed()
-    proposed_model.load_state_dict(torch.load('./model/sarcasm_model.pt', map_location=device))
+    proposed_model.load_state_dict(torch.load(os.path.join(BASE_DIR, 'model', 'sarcasm_model.pt'), map_location=device))
     proposed_model.to(device)
     proposed_model.eval()
     print(f"Proposed model (PyTorch) loaded successfully on {device}")
@@ -155,7 +158,7 @@ try:
     # Load model_fixed.keras - converted from your model.h5 with Lambda replaced by SumLayer
     print("Loading baseline model from model_fixed.keras...")
     baseline_model = keras.models.load_model(
-        './model/model_fixed.keras',
+        os.path.join(BASE_DIR, 'model', 'model_fixed.keras'),
         custom_objects={'SumLayer': SumLayer},
         compile=False,
         safe_mode=False
@@ -424,13 +427,13 @@ def get_metrics():
         proposed_metrics = None
         
         # Load baseline metrics
-        baseline_path = './model/model_metrics.json'
+        baseline_path = os.path.join(BASE_DIR, 'model', 'model_metrics.json')
         if os.path.exists(baseline_path):
             with open(baseline_path, 'r') as f:
                 baseline_metrics = json.load(f)
         
         # Load proposed metrics
-        proposed_path = './model/proposed_model_metrics.json'
+        proposed_path = os.path.join(BASE_DIR, 'model', 'proposed_model_metrics.json')
         if os.path.exists(proposed_path):
             with open(proposed_path, 'r') as f:
                 proposed_metrics = json.load(f)
