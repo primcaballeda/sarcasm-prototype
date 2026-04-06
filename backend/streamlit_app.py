@@ -39,48 +39,105 @@ def apply_custom_style() -> None:
     st.markdown(
         """
         <style>
+            /* React-like light theme */
+            .stApp {
+                background: linear-gradient(135deg, #f0f4f8 0%, #e8f0f7 100%);
+            }
+
             .block-container {
                 padding-top: 1.5rem;
                 padding-bottom: 2rem;
                 max-width: 1200px;
             }
+
+            /* Header */
             .title-wrap {
                 text-align: center;
-                margin-bottom: 1rem;
+                margin-bottom: 0.75rem;
             }
+
+            .title-wrap h1 {
+                margin: 0;
+                font-weight: 800;
+                letter-spacing: -0.5px;
+                background: linear-gradient(135deg, #5b21b6 0%, #1e40af 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                color: #1a202c;
+            }
+
             .subtitle {
                 color: #475569;
                 text-align: center;
-                margin-top: -8px;
+                margin-top: 0;
                 margin-bottom: 20px;
+                font-size: 0.95rem;
             }
-            .card {
-                border: 1px solid #dbe5f2;
+
+            /* Containers (Streamlit "border=True") */
+            div[data-testid="stVerticalBlockBorderWrapper"] {
+                border: 2px solid #e2e8f0;
                 border-radius: 12px;
-                padding: 18px;
                 background: #ffffff;
-                margin-bottom: 14px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
             }
+
+            /* Buttons */
+            div.stButton > button {
+                background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%) !important;
+                color: #ffffff !important;
+                border: none !important;
+                border-radius: 8px !important;
+                font-weight: 700 !important;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                box-shadow: 0 4px 12px rgba(91, 33, 182, 0.25) !important;
+            }
+
+            div.stButton > button:hover {
+                box-shadow: 0 6px 16px rgba(91, 33, 182, 0.35) !important;
+                transform: translateY(-1px);
+            }
+
+            /* Text area */
+            div[data-testid="stTextArea"] textarea {
+                border: 2px solid #cbd5e1 !important;
+                border-radius: 8px !important;
+                color: #1a202c !important;
+            }
+
+            div[data-testid="stTextArea"] textarea:focus {
+                border-color: #5b21b6 !important;
+                box-shadow: 0 0 0 3px rgba(91, 33, 182, 0.10) !important;
+            }
+
+            /* Progress bar */
+            div[data-testid="stProgress"] div[role="progressbar"] > div {
+                background: linear-gradient(90deg, #5b21b6, #06b6d4) !important;
+            }
+
+            /* Result chips */
             .status-ok {
-                color: #166534;
-                font-weight: 700;
-            }
-            .status-bad {
-                color: #991b1b;
-                font-weight: 700;
-            }
-            .small-muted {
-                color: #64748b;
-                font-size: 0.9rem;
-            }
-            .pill {
+                color: #15803d;
+                font-weight: 800;
+                background: #dcfce7;
+                padding: 10px 14px;
+                border-radius: 8px;
+                border-left: 4px solid #10b981;
                 display: inline-block;
-                padding: 4px 8px;
-                border-radius: 6px;
-                background: #f1f5f9;
-                color: #0f172a;
-                font-size: 0.8rem;
-                margin-right: 6px;
+                margin: 8px 0;
+            }
+
+            .status-bad {
+                color: #dc2626;
+                font-weight: 800;
+                background: #fee2e2;
+                padding: 10px 14px;
+                border-radius: 8px;
+                border-left: 4px solid #ef4444;
+                display: inline-block;
+                margin: 8px 0;
             }
         </style>
         """,

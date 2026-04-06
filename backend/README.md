@@ -45,8 +45,10 @@ The server will start on `http://localhost:5000`
 Use this when you want the full UI in Python instead of React.
 
 ```bash
-streamlit run streamlit_app.py
+python -m streamlit run streamlit_app.py --server.address 127.0.0.1 --server.port 8501
 ```
+
+If that command is not found, make sure you activated your virtual environment first.
 
 The Streamlit app provides the same core workflows as the React version:
 - Single text sarcasm detection with baseline and proposed model comparison
