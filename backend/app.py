@@ -11,12 +11,22 @@ import time
 import os
 import pickle
 import sys
+import urllib.request
+import tempfile
+import shutil
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
 
 # Compute base directory relative to this file (backend folder)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Expose model load status for Streamlit UI / health checks
+PROPOSED_MODEL_LOAD_ERROR = None
+BASELINE_MODEL_LOAD_ERROR = None
+BASELINE_TOKENIZER_LOAD_ERROR = None
+BERT_TOKENIZER_SOURCE = None
+PROPOSED_MODEL_PATH = None
 
 # Device configuration for PyTorch
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -31,6 +41,7 @@ bert_tokenizer_path = os.path.join(BASE_DIR, 'tokenizer')
 try:
     if os.path.exists(bert_tokenizer_path) and os.path.isdir(bert_tokenizer_path):
         bert_tokenizer = BertTokenizer.from_pretrained(bert_tokenizer_path)
+        BERT_TOKENIZER_SOURCE = "local"
         print("BERT tokenizer loaded from local directory")
     else:
         raise FileNotFoundError("Local tokenizer directory not found")
@@ -38,6 +49,7 @@ except Exception as e:
     print(f"Could not load local BERT tokenizer: {e}")
     print("Downloading BERT tokenizer from HuggingFace...")
     bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    BERT_TOKENIZER_SOURCE = "huggingface"
     print("BERT tokenizer loaded from HuggingFace")
 
 # Load Keras tokenizer for Baseline Model
@@ -51,7 +63,53 @@ try:
 except Exception as e:
     print(f" Could not load baseline tokenizer: {e}")
     print("   Please copy 'baseline_tokenizer.pkl' to backend/tokenizer/ directory")
+    BASELINE_TOKENIZER_LOAD_ERROR = str(e)
     baseline_tokenizer = None
+
+
+def _download_file(url: str, dst_path: str) -> None:
+    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+    tmp_dir = tempfile.mkdtemp(prefix="sarcasm_model_")
+    try:
+        tmp_path = os.path.join(tmp_dir, "download.tmp")
+        urllib.request.urlretrieve(url, tmp_path)
+        shutil.move(tmp_path, dst_path)
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def _resolve_proposed_model_path() -> str:
+    """Resolve local proposed model weights path, optionally downloading if missing.
+
+    Streamlit Cloud typically does not include large files ignored by git.
+    Set `SARCASM_PROPOSED_MODEL_URL` (or `SARCASM_MODEL_PT_URL`) to a direct-download URL.
+    """
+    local_path = os.path.join(BASE_DIR, 'model', 'sarcasm_model.pt')
+    if os.path.exists(local_path):
+        return local_path
+
+    url = os.environ.get("SARCASM_PROPOSED_MODEL_URL") or os.environ.get("SARCASM_MODEL_PT_URL")
+    if not url:
+        raise FileNotFoundError(
+            "Proposed model weights not found at backend/model/sarcasm_model.pt. "
+            "If you deployed to Streamlit Cloud, that file is often excluded from git because it's large. "
+            "Provide a direct-download URL via env var SARCASM_PROPOSED_MODEL_URL."
+        )
+
+    cache_dir = os.environ.get("SARCASM_MODEL_CACHE_DIR") or os.path.join(
+        os.path.expanduser("~"), ".cache", "sarcasm-prototype"
+    )
+    cache_path = os.path.join(cache_dir, "sarcasm_model.pt")
+    if not os.path.exists(cache_path):
+        print(f"Downloading proposed model weights to cache: {cache_path}")
+        _download_file(url, cache_path)
+
+    if not os.path.exists(cache_path):
+        raise FileNotFoundError(
+            f"Tried downloading proposed model weights but file does not exist at: {cache_path}"
+        )
+
+    return cache_path
 
 # ============================================================================
 # PROPOSED MODEL (PyTorch - BERT + CNN + BiLSTM + Multi-Head Attention)
@@ -128,7 +186,8 @@ try:
     print("Initializing Proposed model architecture...")
     proposed_model = SarcasmDetectorProposed()
     print("Loading proposed model weights...")
-    model_path = os.path.join(BASE_DIR, 'model', 'sarcasm_model.pt')
+    model_path = _resolve_proposed_model_path()
+    PROPOSED_MODEL_PATH = model_path
     print(f"Model path: {model_path}")
     print(f"Model exists: {os.path.exists(model_path)}")
     state_dict = torch.load(model_path, map_location=device)
@@ -141,6 +200,7 @@ except Exception as e:
     import traceback
     print(f"✗ Error loading proposed model: {e}")
     print(f"Traceback: {traceback.format_exc()}")
+    PROPOSED_MODEL_LOAD_ERROR = str(e)
     proposed_model = None
 
 # ============================================================================
@@ -177,7 +237,36 @@ try:
     
 except Exception as e:
     print(f" Failed to load model_fixed.keras: {e}")
+    BASELINE_MODEL_LOAD_ERROR = str(e)
     baseline_model = None
+
+
+def get_model_status() -> dict:
+    """Return a lightweight status payload for UIs/health checks."""
+    return {
+        "device": str(device),
+        "tokenizers": {
+            "bert": {
+                "loaded": bert_tokenizer is not None,
+                "source": BERT_TOKENIZER_SOURCE,
+            },
+            "baseline": {
+                "loaded": baseline_tokenizer is not None,
+                "error": BASELINE_TOKENIZER_LOAD_ERROR,
+            },
+        },
+        "models": {
+            "proposed": {
+                "loaded": proposed_model is not None,
+                "path": PROPOSED_MODEL_PATH,
+                "error": PROPOSED_MODEL_LOAD_ERROR,
+            },
+            "baseline": {
+                "loaded": baseline_model is not None,
+                "error": BASELINE_MODEL_LOAD_ERROR,
+            },
+        },
+    }
 
 # ============================================================================
 # PREDICTION FUNCTIONS

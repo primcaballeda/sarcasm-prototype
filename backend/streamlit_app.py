@@ -193,7 +193,20 @@ def safe_percentage(value: Any) -> str:
 
 
 def format_model_result(raw: Dict[str, Any], model_name: str) -> Dict[str, Any]:
+    raw_error = raw.get("error") if isinstance(raw, dict) else None
     if model_name == "baseline":
+        if raw_error:
+            return {
+                "isSarcastic": False,
+                "confidence": 0.0,
+                "indicators": [
+                    "Baseline model is unavailable in this deployment.",
+                    f"Details: {raw_error}",
+                ],
+                "model": "GloVe+CNN+BiLSTM+Attention",
+                "processingTime": raw.get("processingTime", "N/A") if isinstance(raw, dict) else "N/A",
+                "error": raw_error,
+            }
         return {
             "isSarcastic": bool(raw.get("isSarcastic", False)),
             "confidence": float(raw.get("confidence", 0.0)),
@@ -206,6 +219,21 @@ def format_model_result(raw: Dict[str, Any], model_name: str) -> Dict[str, Any]:
             ],
             "model": "GloVe+CNN+BiLSTM+Attention",
             "processingTime": raw.get("processingTime", "N/A"),
+        }
+
+    if raw_error:
+        return {
+            "isSarcastic": False,
+            "confidence": 0.0,
+            "indicators": [
+                "Proposed model is unavailable in this deployment.",
+                f"Details: {raw_error}",
+                "If deployed on Streamlit Cloud, the .pt weights may be missing (often ignored by git).",
+                "Set env var SARCASM_PROPOSED_MODEL_URL to a direct-download URL for sarcasm_model.pt.",
+            ],
+            "model": "BERT+CNN+BiLSTM+MHA",
+            "processingTime": raw.get("processingTime", "N/A") if isinstance(raw, dict) else "N/A",
+            "error": raw_error,
         }
 
     return {
@@ -477,17 +505,23 @@ def analyze_text(text: str) -> Optional[str]:
 
     baseline_raw = backend_app.predict_baseline(text)
     proposed_raw = backend_app.predict_proposed(text)
-    
-    # Check for errors in model responses
-    if 'error' in baseline_raw:
-        return f"Baseline model error: {baseline_raw['error']}"
-    if 'error' in proposed_raw:
-        return f"Proposed model error: {proposed_raw['error']}"
 
+    baseline_error = baseline_raw.get("error") if isinstance(baseline_raw, dict) else None
+    if baseline_error:
+        st.session_state["results"] = None
+        return f"Baseline model error: {baseline_error}"
+
+    proposed_error = proposed_raw.get("error") if isinstance(proposed_raw, dict) else None
+
+    # Always store baseline results; if proposed fails, keep UI visible with a clear message.
     st.session_state["results"] = {
         "baseline": format_model_result(baseline_raw, "baseline"),
         "proposed": format_model_result(proposed_raw, "proposed"),
     }
+
+    if proposed_error:
+        return f"Proposed model error: {proposed_error}"
+
     return None
 
 
@@ -560,6 +594,9 @@ def render_single_result(title: str, model_type: str, result: Dict[str, Any]) ->
 
         st.progress(min(max(result["confidence"] / 100.0, 0.0), 1.0), text=f"Confidence: {result['confidence']:.2f}%")
 
+        if result.get("error"):
+            st.error(result["error"])
+
         st.markdown("Analysis Details")
         for indicator in result["indicators"]:
             st.write(f"- {indicator}")
@@ -610,6 +647,17 @@ def main() -> None:
     st.markdown("<div class='title-wrap'><h1>Sarcasm Detector</h1></div>", unsafe_allow_html=True)
     st.markdown("<p class='subtitle'>Baseline vs. Proposed Model (Python + Streamlit)</p>", unsafe_allow_html=True)
 
+    # Show model load status (useful on Streamlit Cloud deployments)
+    status_fn = getattr(backend_app, "get_model_status", None)
+    if callable(status_fn):
+        status = status_fn()
+        proposed_status = (status.get("models") or {}).get("proposed") or {}
+        baseline_status = (status.get("models") or {}).get("baseline") or {}
+        if not baseline_status.get("loaded") and baseline_status.get("error"):
+            st.error(f"Baseline model failed to load: {baseline_status.get('error')}")
+        if not proposed_status.get("loaded") and proposed_status.get("error"):
+            st.warning(f"Proposed model not loaded: {proposed_status.get('error')}")
+
     with st.container(border=True):
         st.subheader("Text Analysis")
 
@@ -636,7 +684,10 @@ def main() -> None:
         if analyze_clicked:
             message = analyze_text(st.session_state["text"])
             if message:
-                st.error(message)
+                if message.lower().startswith("proposed model error"):
+                    st.warning(message)
+                else:
+                    st.error(message)
 
         if clear_clicked:
             st.session_state["text"] = ""

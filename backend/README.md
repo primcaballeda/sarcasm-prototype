@@ -27,7 +27,12 @@ This backend server loads and runs the PyTorch sarcasm detection model.
    ```
 
 5. Place your model file:
-   - Copy your trained model file (.pt) to `backend/model/sarcasm_model.pt`
+  - Copy your trained model file (.pt) to `backend/model/sarcasm_model.pt`
+
+  Note: this repo intentionally ignores `backend/model/*.pt` (see `backend/.gitignore`) because the file is very large.
+  For local runs, that's fine. For Streamlit Cloud deployments, you must either:
+  - Use Git LFS to track the `.pt` file, OR
+  - Host the `.pt` somewhere and provide a direct-download URL via `SARCASM_PROPOSED_MODEL_URL`.
 
 6. Place tokenizer files:
    - Copy `tokenizer.json` and `tokenizer_config.json` to `backend/tokenizer/`
@@ -58,6 +63,14 @@ The Streamlit app provides the same core workflows as the React version:
 - Model performance comparison view
 
 When running Streamlit, Flask does not need to be started separately because predictions are called directly from Python.
+
+## Streamlit Cloud Deployment Notes
+
+- If the **Proposed model** does not appear, it's almost always because `backend/model/sarcasm_model.pt` is missing in the deployed environment.
+- Recommended fix (no Git LFS): upload the file to a host that provides a direct-download URL (e.g., a private file host) and set:
+  - `SARCASM_PROPOSED_MODEL_URL` = the URL to `sarcasm_model.pt`
+  - Optional: `SARCASM_MODEL_CACHE_DIR` = where to cache the download (defaults to `~/.cache/sarcasm-prototype`)
+- The app will download the weights on first start, then reuse the cached file on subsequent restarts.
 
 ## API Endpoints
 
