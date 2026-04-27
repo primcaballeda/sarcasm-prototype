@@ -1,45 +1,36 @@
-# Sarcasm Detector Prototype
+# Sarcasm Detector Prototype (Python)
 
-A React-based web application that detects whether text is sarcastic or not.
+Python backend + Streamlit UI for sarcasm detection.
 
-## Features
+This repo previously included a React frontend; all React/JavaScript code has been removed to keep the project Python-only.
 
-- Text input for sarcasm analysis
-- Real-time detection using rule-based algorithms
-- Visual feedback with confidence scores
-- Pre-loaded examples to test
-- Responsive design
+## What to run
 
-## Getting Started
+### Option A: Streamlit UI (recommended)
 
-### Install Dependencies
+From the repo root:
 
-```bash
-npm install
+```powershell
+cd backend
+python -m venv venv
+.\venv\Scripts\activate
+pip install -r requirements.txt
+python -m streamlit run streamlit_app.py --server.address 127.0.0.1 --server.port 8501
 ```
 
-### Run the Development Server
+### Option B: Flask API (for programmatic access)
 
-```bash
-npm start
+```powershell
+cd backend
+.\venv\Scripts\activate
+python app.py
 ```
 
-The app will open at [http://localhost:3000](http://localhost:3000)
+API runs on `http://127.0.0.1:5000`.
 
-## How It Works
+## More details
 
-This prototype uses a simple rule-based approach to detect sarcasm by analyzing:
-- Sarcasm keywords and phrases
-- Punctuation patterns (exclamation marks, ellipsis, quotes)
-- Text emphasis (ALL CAPS words)
-- Context clues
-
-**Note:** This is a prototype. A production system would use machine learning models for better accuracy.
-
-## Technologies Used
-
-- React 18
-- CSS3 with animations
-- JavaScript ES6+
+- Backend documentation: see `backend/README.md`
+- Setup walkthrough: see `SETUP.md`
 
 

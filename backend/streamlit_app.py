@@ -7,6 +7,11 @@ from typing import Any, Dict, List, Optional
 
 import streamlit as st
 
+try:
+    import altair as alt
+except Exception:  # pragma: no cover
+    alt = None
+
 import app as backend_app
 
 
@@ -640,6 +645,85 @@ def render_confusion(conf: Dict[str, int], title: str) -> None:
     )
 
 
+def render_performance_comparison_chart(perf_rows: List[Dict[str, str]]) -> None:
+    chart_values: List[Dict[str, Any]] = []
+    for row in perf_rows:
+        metric = row.get("Metric")
+        if not metric:
+            continue
+
+        try:
+            baseline_value = float(row.get("Baseline (%)", 0.0))
+        except (TypeError, ValueError):
+            baseline_value = 0.0
+
+        try:
+            proposed_value = float(row.get("Proposed (%)", 0.0))
+        except (TypeError, ValueError):
+            proposed_value = 0.0
+
+        chart_values.append({"Metric": metric, "Model": "Baseline", "Value": baseline_value})
+        chart_values.append({"Metric": metric, "Model": "Proposed", "Value": proposed_value})
+
+    if not chart_values:
+        st.info("No chart data available.")
+        return
+
+    if alt is None:
+        # Fallback: keep the app working even if Altair isn't available.
+        wide = []
+        metric_order: List[str] = []
+        for row in perf_rows:
+            metric = row.get("Metric")
+            if not metric:
+                continue
+            metric_order.append(metric)
+            wide.append(
+                {
+                    "Metric": metric,
+                    "Baseline": float(row.get("Baseline (%)") or 0.0),
+                    "Proposed": float(row.get("Proposed (%)") or 0.0),
+                }
+            )
+        st.bar_chart(wide, x="Metric", y=["Baseline", "Proposed"])
+        return
+
+    metric_order = [row["Metric"] for row in perf_rows if row.get("Metric")]
+
+    base = (
+        alt.Chart(alt.Data(values=chart_values))
+        .encode(
+            x=alt.X(
+                "Metric:N",
+                sort=metric_order,
+                axis=alt.Axis(labelAngle=0, title=None),
+            ),
+            xOffset=alt.XOffset("Model:N"),
+            y=alt.Y(
+                "Value:Q",
+                title="Score (%)",
+                scale=alt.Scale(domain=[0, 100]),
+            ),
+            color=alt.Color(
+                "Model:N",
+                legend=alt.Legend(orient="top"),
+                scale=alt.Scale(domain=["Baseline", "Proposed"], range=["#5b21b6", "#06b6d4"]),
+            ),
+            tooltip=[
+                alt.Tooltip("Metric:N"),
+                alt.Tooltip("Model:N"),
+                alt.Tooltip("Value:Q", format=".2f", title="Score (%)"),
+            ],
+        )
+    )
+
+    bars = base.mark_bar(size=32, cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
+    labels = base.mark_text(dy=-8, fontWeight="bold").encode(text=alt.Text("Value:Q", format=".0f"))
+    chart = (bars + labels).properties(height=320).configure_view(strokeWidth=0)
+
+    st.altair_chart(chart, use_container_width=True)
+
+
 def main() -> None:
     apply_custom_style()
     init_state()
@@ -682,7 +766,13 @@ def main() -> None:
             clear_clicked = st.button("Clear", width="stretch")
 
         if analyze_clicked:
-            message = analyze_text(st.session_state["text"])
+            status_widget = getattr(st, "status", None)
+            if callable(status_widget):
+                with st.status("Detecting sarcasm…", expanded=False):
+                    message = analyze_text(st.session_state["text"])
+            else:
+                with st.spinner("Detecting sarcasm…"):
+                    message = analyze_text(st.session_state["text"])
             if message:
                 if message.lower().startswith("proposed model error"):
                     st.warning(message)
@@ -722,7 +812,7 @@ def main() -> None:
     st.subheader("Upload Dataset for Batch Testing")
     st.caption("Use the guided steps below to compare both models on many text samples at once.")
 
-    uploaded_file = st.file_uploader("Choose Dataset File", type=["csv", "json"])
+    uploaded_file = st.file_uploader("Choose Dataset File", type=["csv"])
 
     if uploaded_file is not None:
         signature = (uploaded_file.name, uploaded_file.size)
@@ -845,15 +935,8 @@ def main() -> None:
         perf_rows = build_performance_rows(metrics)
         st.table(perf_rows)
 
-        chart_source = [
-            {
-                "Metric": row["Metric"],
-                "Baseline": float(row["Baseline (%)"]),
-                "Proposed": float(row["Proposed (%)"]),
-            }
-            for row in perf_rows
-        ]
-        st.bar_chart(chart_source, x="Metric", y=["Baseline", "Proposed"])
+        st.markdown("#### Performance Metrics")
+        render_performance_comparison_chart(perf_rows)
 
     st.subheader("Confusion Matrix - Baseline Model")
     render_confusion(

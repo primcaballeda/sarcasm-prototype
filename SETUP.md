@@ -1,23 +1,19 @@
-# Sarcasm Detection Setup Guide
+# Sarcasm Detection Setup Guide (Python-only)
 
-This guide will help you set up the full-stack sarcasm detection application with your PyTorch model.
+This guide helps you run the Python backend and the Streamlit UI using your model.
 
 ## Project Structure
 
 ```
 sarcasm-prototype/
-├── backend/                    # Python Flask backend
-│   ├── app.py                 # Main Flask application
+├── backend/                    # Python backend + Streamlit UI
+│   ├── app.py                 # Flask API (optional)
+│   ├── streamlit_app.py       # Streamlit UI (recommended)
 │   ├── requirements.txt       # Python dependencies
-│   ├── tokenizer/             # Tokenizer files (already copied)
-│   │   ├── tokenizer.json
-│   │   └── tokenizer_config.json
+│   ├── tokenizer/             # Tokenizer files
 │   └── model/                 # Model directory
-│       └── sarcasm_model.pt   # YOUR MODEL FILE (you need to copy this)
-├── src/                       # React frontend
-│   └── components/
-│       └── SarcasmDetector.jsx
-└── package.json               # Node.js dependencies
+│       └── sarcasm_model.pt   # YOUR MODEL FILE (copy here)
+└── SETUP.md
 ```
 
 ## Step 1: Set Up the Backend (Python)
@@ -64,10 +60,10 @@ Copy your trained PyTorch model file (`.pt` extension) to the `backend/model/` d
 Copy-Item "path\to\your\model.pt" -Destination "model\sarcasm_model.pt"
 ```
 
-### 1.6 Start the backend server
+### 1.6 Start the backend server (Flask API, optional)
 
 ```powershell
-w
+python app.py
 ```
 
 You should see:
@@ -93,29 +89,15 @@ Invoke-WebRequest -Uri "http://localhost:5000/api/predict" -Method POST -Body $b
 
 ## Step 2: Set Up the Frontend (React)
 
-### 2.1 Open a NEW terminal window
+The React frontend has been removed. Use the Streamlit UI instead.
 
-Keep the backend running in the first terminal.
+### 2.1 Start the Streamlit UI (recommended)
 
-### 2.2 Navigate to the project root
-
-```powershell
-cd "c:\Coding stuff\sarcasm-prototype"
-```
-
-### 2.3 Install Node.js dependencies (if not already installed)
+From `backend/` (with your venv activated):
 
 ```powershell
-npm install
+python -m streamlit run streamlit_app.py --server.address 127.0.0.1 --server.port 8501
 ```
-
-### 2.4 Start the React development server
-
-```powershell
-npm start
-```
-
-The application will open in your browser at `http://localhost:3000`
 
 ## Step 3: Using the Application
 
@@ -153,14 +135,7 @@ The application will open in your browser at `http://localhost:3000`
 
 ### Frontend Issues
 
-**"Network error" or "API unavailable"**
-- Make sure the backend server is running
-- Check that the backend URL in `SarcasmDetector.jsx` matches your backend port
-- Check browser console for detailed error messages
-
-**CORS errors**
-- The backend already has CORS enabled via Flask-CORS
-- If issues persist, try restarting both servers
+N/A (React frontend removed).
 
 ## Model Architecture Notes
 
@@ -176,32 +151,9 @@ If your model architecture is different, you'll need to modify the `SarcasmDetec
 ## Production Deployment
 
 For production deployment, consider:
-1. Using Gunicorn or uWSGI instead of Flask's development server
-2. Setting up proper environment variables for API keys and configurations
-3. Using a reverse proxy (nginx) to serve both frontend and backend
-4. Deploying the frontend build to a CDN
-5. Implementing rate limiting and authentication
-
-### Custom Domain Setup for `sarcasm-detector.dev`
-
-If you want the app live on your domain, split it into two parts:
-1. Host the React frontend on Vercel, Netlify, or a similar static host.
-2. Host the Flask backend separately on Render, Railway, Fly.io, or a small VPS.
-
-Recommended setup:
-1. Point `sarcasm-detector.dev` to the frontend host.
-2. Point `api.sarcasm-detector.dev` to the backend host.
-3. Set `REACT_APP_API_BASE_URL` in the frontend deployment to your backend URL, for example `https://api.sarcasm-detector.dev`.
-4. Keep CORS enabled in Flask so the frontend can call the API across subdomains.
-
-DNS checklist:
-1. Add the domain in your frontend host dashboard.
-2. Add the DNS records your host provides. For Vercel, that usually means the apex A record plus a `www` CNAME.
-3. Add a separate DNS record for `api` if your backend uses its own subdomain.
-
-Important:
-1. The frontend currently calls the API with a configurable base URL instead of `localhost`.
-2. Do not deploy the frontend with `REACT_APP_API_BASE_URL` left blank unless the backend is served from the same origin.
+1. Deploying the Streamlit app (simplest) or the Flask API behind Gunicorn
+2. Providing the model weights via Git LFS or `SARCASM_PROPOSED_MODEL_URL` (see `backend/README.md`)
+3. Adding rate limiting/auth if exposing the API publicly
 
 ## Support
 
