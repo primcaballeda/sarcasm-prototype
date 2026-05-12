@@ -809,121 +809,129 @@ def main() -> None:
                 st.session_state["results"]["proposed"],
             )
 
-    st.subheader("Upload Dataset for Batch Testing")
-    st.caption("Use the guided steps below to compare both models on many text samples at once.")
+    st.markdown("---")
+    show_batch_testing = st.checkbox(
+        "Enable Batch Testing",
+        value=False,
+        help="Toggle to show/hide the dataset batch testing interface"
+    )
 
-    uploaded_file = st.file_uploader("Choose Dataset File", type=["csv"])
+    if show_batch_testing:
+        st.subheader("Upload Dataset for Batch Testing")
+        st.caption("Use the guided steps below to compare both models on many text samples at once.")
 
-    if uploaded_file is not None:
-        signature = (uploaded_file.name, uploaded_file.size)
-        if signature != st.session_state["uploaded_signature"]:
-            st.session_state["uploaded_signature"] = signature
-            try:
-                parsed_data = parse_uploaded_file(uploaded_file)
-                st.session_state["dataset"] = parsed_data
-                st.session_state["dataset_results"] = []
-                st.session_state["show_all_results"] = False
-                st.session_state["upload_status"] = {
-                    "type": "success",
-                    "message": f"Loaded {len(parsed_data)} sample{'s' if len(parsed_data) != 1 else ''}. Click Process Dataset to run both models.",
-                    "fileName": uploaded_file.name,
+        uploaded_file = st.file_uploader("Choose Dataset File", type=["csv"])
+
+        if uploaded_file is not None:
+            signature = (uploaded_file.name, uploaded_file.size)
+            if signature != st.session_state["uploaded_signature"]:
+                st.session_state["uploaded_signature"] = signature
+                try:
+                    parsed_data = parse_uploaded_file(uploaded_file)
+                    st.session_state["dataset"] = parsed_data
+                    st.session_state["dataset_results"] = []
+                    st.session_state["show_all_results"] = False
+                    st.session_state["upload_status"] = {
+                        "type": "success",
+                        "message": f"Loaded {len(parsed_data)} sample{'s' if len(parsed_data) != 1 else ''}. Click Process Dataset to run both models.",
+                        "fileName": uploaded_file.name,
+                    }
+                except Exception as exc:
+                    st.session_state["dataset"] = []
+                    st.session_state["dataset_results"] = []
+                    st.session_state["show_all_results"] = False
+                    st.session_state["upload_status"] = {
+                        "type": "error",
+                        "message": f"File format not aligned: {exc}",
+                        "fileName": uploaded_file.name,
+                    }
+
+        upload_status = st.session_state["upload_status"]
+        if upload_status["type"] == "success":
+            st.success(f"Status: {upload_status['message']} File: {upload_status['fileName']}")
+        elif upload_status["type"] == "error":
+            st.error(f"Status: {upload_status['message']} File: {upload_status['fileName']}")
+        else:
+            st.info(upload_status["message"])
+
+        if st.session_state["dataset"]:
+            st.write(f"{len(st.session_state['dataset'])} samples loaded")
+            col_c, col_d = st.columns([1, 1])
+            with col_c:
+                if st.button("Process Dataset", width="stretch"):
+                    process_dataset()
+            with col_d:
+                if st.button("Clear Dataset", width="stretch"):
+                    st.session_state["dataset"] = []
+                    st.session_state["dataset_results"] = []
+                    st.session_state["show_all_results"] = False
+                    st.session_state["upload_status"] = {
+                        "type": "neutral",
+                        "message": "Dataset cleared. Upload a CSV or JSON file to start again.",
+                        "fileName": "",
+                    }
+                    st.session_state["uploaded_signature"] = None
+                    st.rerun()
+
+        dataset_results = st.session_state["dataset_results"]
+        if dataset_results:
+            st.subheader("Dataset Results")
+
+            stats = calculate_dataset_stats(dataset_results)
+            detailed_metrics = calculate_detailed_metrics(dataset_results)
+
+            if detailed_metrics:
+                st.markdown("#### Performance on Your Dataset")
+                render_metrics_table(detailed_metrics)
+
+                left_conf, right_conf = st.columns(2)
+                with left_conf:
+                    render_confusion(detailed_metrics["baseline"]["confusion"], "Baseline Model - Confusion Matrix")
+                with right_conf:
+                    render_confusion(detailed_metrics["proposed"]["confusion"], "Proposed Model - Confusion Matrix")
+
+            if stats:
+                st.markdown("#### Baseline Model Results")
+                cols_stats_baseline = st.columns(5)
+                cols_stats_baseline[0].metric("Total Samples", stats["total"])
+                cols_stats_baseline[1].metric("Predicted Sarcastic", stats["baseline"]["predictedSarcastic"])
+                cols_stats_baseline[2].metric("Predicted Not Sarcastic", stats["baseline"]["predictedNotSarcastic"])
+                cols_stats_baseline[3].metric("Correct", f"{stats['baseline']['correct']}/{stats['withLabels']}")
+                cols_stats_baseline[4].metric("Accuracy", f"{stats['baseline']['accuracy']}%")
+
+                st.markdown("#### Proposed Model Results")
+                cols_stats_proposed = st.columns(5)
+                cols_stats_proposed[0].metric("Total Samples", stats["total"])
+                cols_stats_proposed[1].metric("Predicted Sarcastic", stats["proposed"]["predictedSarcastic"])
+                cols_stats_proposed[2].metric("Predicted Not Sarcastic", stats["proposed"]["predictedNotSarcastic"])
+                cols_stats_proposed[3].metric("Correct", f"{stats['proposed']['correct']}/{stats['withLabels']}")
+                cols_stats_proposed[4].metric("Accuracy", f"{stats['proposed']['accuracy']}%")
+
+            show_all = st.checkbox(
+                f"Show all results ({len(dataset_results)})",
+                value=st.session_state["show_all_results"],
+            )
+            st.session_state["show_all_results"] = show_all
+            display_rows = dataset_results if show_all else dataset_results[:15]
+
+            has_labels = any(row.get("label") is not None for row in dataset_results)
+            table_rows: List[Dict[str, Any]] = []
+            for row in display_rows:
+                output = {
+                    "ID": row["id"],
+                    "Text": row["text"],
+                    "Baseline Predicted": "Sarcastic" if row["baseline"]["predicted"] else "Not Sarcastic",
+                    "Baseline Confidence": f"{row['baseline']['confidence']:.2f}%",
+                    "Proposed Predicted": "Sarcastic" if row["proposed"]["predicted"] else "Not Sarcastic",
+                    "Proposed Confidence": f"{row['proposed']['confidence']:.2f}%",
                 }
-            except Exception as exc:
-                st.session_state["dataset"] = []
-                st.session_state["dataset_results"] = []
-                st.session_state["show_all_results"] = False
-                st.session_state["upload_status"] = {
-                    "type": "error",
-                    "message": f"File format not aligned: {exc}",
-                    "fileName": uploaded_file.name,
-                }
+                if has_labels:
+                    output["Actual Label"] = "Sarcastic" if row.get("label") else "Not Sarcastic"
+                    output["Baseline Match"] = "PASS" if row["baseline"]["correct"] else "FAIL"
+                    output["Proposed Match"] = "PASS" if row["proposed"]["correct"] else "FAIL"
+                table_rows.append(output)
 
-    upload_status = st.session_state["upload_status"]
-    if upload_status["type"] == "success":
-        st.success(f"Status: {upload_status['message']} File: {upload_status['fileName']}")
-    elif upload_status["type"] == "error":
-        st.error(f"Status: {upload_status['message']} File: {upload_status['fileName']}")
-    else:
-        st.info(upload_status["message"])
-
-    if st.session_state["dataset"]:
-        st.write(f"{len(st.session_state['dataset'])} samples loaded")
-        col_c, col_d = st.columns([1, 1])
-        with col_c:
-            if st.button("Process Dataset", width="stretch"):
-                process_dataset()
-        with col_d:
-            if st.button("Clear Dataset", width="stretch"):
-                st.session_state["dataset"] = []
-                st.session_state["dataset_results"] = []
-                st.session_state["show_all_results"] = False
-                st.session_state["upload_status"] = {
-                    "type": "neutral",
-                    "message": "Dataset cleared. Upload a CSV or JSON file to start again.",
-                    "fileName": "",
-                }
-                st.session_state["uploaded_signature"] = None
-                st.rerun()
-
-    dataset_results = st.session_state["dataset_results"]
-    if dataset_results:
-        st.subheader("Dataset Results")
-
-        stats = calculate_dataset_stats(dataset_results)
-        detailed_metrics = calculate_detailed_metrics(dataset_results)
-
-        if detailed_metrics:
-            st.markdown("#### Performance on Your Dataset")
-            render_metrics_table(detailed_metrics)
-
-            left_conf, right_conf = st.columns(2)
-            with left_conf:
-                render_confusion(detailed_metrics["baseline"]["confusion"], "Baseline Model - Confusion Matrix")
-            with right_conf:
-                render_confusion(detailed_metrics["proposed"]["confusion"], "Proposed Model - Confusion Matrix")
-
-        if stats:
-            st.markdown("#### Baseline Model Results")
-            cols_stats_baseline = st.columns(5)
-            cols_stats_baseline[0].metric("Total Samples", stats["total"])
-            cols_stats_baseline[1].metric("Predicted Sarcastic", stats["baseline"]["predictedSarcastic"])
-            cols_stats_baseline[2].metric("Predicted Not Sarcastic", stats["baseline"]["predictedNotSarcastic"])
-            cols_stats_baseline[3].metric("Correct", f"{stats['baseline']['correct']}/{stats['withLabels']}")
-            cols_stats_baseline[4].metric("Accuracy", f"{stats['baseline']['accuracy']}%")
-
-            st.markdown("#### Proposed Model Results")
-            cols_stats_proposed = st.columns(5)
-            cols_stats_proposed[0].metric("Total Samples", stats["total"])
-            cols_stats_proposed[1].metric("Predicted Sarcastic", stats["proposed"]["predictedSarcastic"])
-            cols_stats_proposed[2].metric("Predicted Not Sarcastic", stats["proposed"]["predictedNotSarcastic"])
-            cols_stats_proposed[3].metric("Correct", f"{stats['proposed']['correct']}/{stats['withLabels']}")
-            cols_stats_proposed[4].metric("Accuracy", f"{stats['proposed']['accuracy']}%")
-
-        show_all = st.checkbox(
-            f"Show all results ({len(dataset_results)})",
-            value=st.session_state["show_all_results"],
-        )
-        st.session_state["show_all_results"] = show_all
-        display_rows = dataset_results if show_all else dataset_results[:15]
-
-        has_labels = any(row.get("label") is not None for row in dataset_results)
-        table_rows: List[Dict[str, Any]] = []
-        for row in display_rows:
-            output = {
-                "ID": row["id"],
-                "Text": row["text"],
-                "Baseline Predicted": "Sarcastic" if row["baseline"]["predicted"] else "Not Sarcastic",
-                "Baseline Confidence": f"{row['baseline']['confidence']:.2f}%",
-                "Proposed Predicted": "Sarcastic" if row["proposed"]["predicted"] else "Not Sarcastic",
-                "Proposed Confidence": f"{row['proposed']['confidence']:.2f}%",
-            }
-            if has_labels:
-                output["Actual Label"] = "Sarcastic" if row.get("label") else "Not Sarcastic"
-                output["Baseline Match"] = "PASS" if row["baseline"]["correct"] else "FAIL"
-                output["Proposed Match"] = "PASS" if row["proposed"]["correct"] else "FAIL"
-            table_rows.append(output)
-
-        st.dataframe(table_rows, width="stretch")
+            st.dataframe(table_rows, width="stretch")
 
     st.subheader("Model Performance Comparison")
     metrics = load_model_metrics()

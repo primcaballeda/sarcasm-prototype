@@ -6,24 +6,24 @@
         "batch_size": 32,
         "learning_rate": 0.001,
         "optimizer": "Adam",
-        "timestamp": "2026-03-17 04:37:12"
+        "timestamp": "2026-05-12 17:42:38"
     },
     "performance_metrics": {
-        "accuracy": 0.7034078807241747,
-        "precision": 0.6992481203007519,
-        "sensitivity_recall": 0.7015086206896551,
-        "specificity": 0.7052631578947368,
-        "f1_score": 0.7003765465303927
+        "accuracy": 0.6981534090909091,
+        "precision": 0.7206611570247934,
+        "sensitivity_recall": 0.630057803468208,
+        "specificity": 0.7639664804469274,
+        "f1_score": 0.6723207401696222
     },
     "confusion_matrix": {
-        "true_negatives": 670,
-        "false_positives": 280,
-        "false_negatives": 277,
-        "true_positives": 651
+        "true_negatives": 547,
+        "false_positives": 169,
+        "false_negatives": 256,
+        "true_positives": 436
     },
     "dataset_info": {
-        "train_samples": 7508,
-        "test_samples": 1878,
+        "train_samples": 6570,
+        "test_samples": 1408,
         "vocab_size": 23975
     }
 }

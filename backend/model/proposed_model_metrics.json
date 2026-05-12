@@ -10,27 +10,27 @@
         "bert_model": "bert-base-uncased",
         "bert_trainable": false,
         "hidden_units": 128,
-        "num_heads": 8,
+        "num_heads": 2,
         "dropout_rate": 0.3,
-        "timestamp": "2026-03-17 05:00:23"
+        "timestamp": "2026-05-12 18:10:32"
     },
     "performance_metrics": {
-        "accuracy": 0.7582534611288605,
-        "precision": 0.7765108323831242,
-        "sensitivity_recall": 0.7252396166134185,
-        "specificity": 0.7912673056443025,
-        "f1_score": 0.75,
-        "test_loss": 0.575890969639769
+        "accuracy": 0.7528409090909091,
+        "precision": 0.7253164556962025,
+        "sensitivity_recall": 0.8139204545454546,
+        "specificity": 0.6917613636363636,
+        "f1_score": 0.7670682730923695,
+        "test_loss": 0.6492576500908895
     },
     "confusion_matrix": {
-        "true_negatives": 743,
-        "false_positives": 196,
-        "false_negatives": 258,
-        "true_positives": 681
+        "true_negatives": 487,
+        "false_positives": 217,
+        "false_negatives": 131,
+        "true_positives": 573
     },
     "dataset_info": {
-        "train_samples": 7508,
-        "test_samples": 1878,
+        "train_samples": 6570,
+        "test_samples": 1408,
         "vocab_size": 30522
     }
 }
