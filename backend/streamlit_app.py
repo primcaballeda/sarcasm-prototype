@@ -164,6 +164,7 @@ def init_state() -> None:
             "fileName": "",
         },
         "uploaded_signature": None,
+        "current_example": None,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -762,6 +763,10 @@ def main() -> None:
         )
         st.session_state["text"] = text_value
 
+        # Show loading indicator if an example is currently displayed
+        if st.session_state["current_example"] is not None:
+            st.info(f"Example {st.session_state['current_example']} loaded")
+
         word_count = len([w for w in re.split(r"\s+", text_value.strip()) if w]) if text_value.strip() else 0
         if word_count > 200:
             st.error(f"{word_count} / 200 words")
@@ -791,6 +796,7 @@ def main() -> None:
         if clear_clicked:
             st.session_state["text"] = ""
             st.session_state["results"] = None
+            st.session_state["current_example"] = None
             st.rerun()
 
     with st.container(border=True):
@@ -800,6 +806,7 @@ def main() -> None:
             with cols[index]:
                 if st.button(f"Example {index + 1}", key=f"example_{index}", width="stretch"):
                     st.session_state["text"] = sample
+                    st.session_state["current_example"] = index + 1
                     st.rerun()
 
     if st.session_state["results"]:

@@ -136,7 +136,7 @@ class SarcasmDetectorProposed(nn.Module):
         
         # Multi-head attention
         lstm_out_size = hidden_size * 2
-        self.mha = nn.MultiheadAttention(embed_dim=lstm_out_size, num_heads=8, dropout=0.3, batch_first=True)
+        self.mha = nn.MultiheadAttention(embed_dim=lstm_out_size, num_heads=2, dropout=0.3, batch_first=True)
         
         # Layer normalization
         self.layer_norm = nn.LayerNorm(lstm_out_size)
