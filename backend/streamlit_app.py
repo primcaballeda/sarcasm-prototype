@@ -543,7 +543,7 @@ def process_dataset() -> None:
     status = st.empty()
 
     results: List[Dict[str, Any]] = []
-    batch_size = 10
+    batch_size = 5
     total = len(dataset)
 
     for start in range(0, total, batch_size):
