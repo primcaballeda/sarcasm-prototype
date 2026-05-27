@@ -224,19 +224,19 @@ class SumLayer(keras.layers.Layer):
 # Load Baseline Model (Keras)
 baseline_model = None
 try:
-    # Load model_fixed.keras - converted from your model.h5 with Lambda replaced by SumLayer
-    print("Loading baseline model from model_fixed.keras...")
+    # Load baseline_model.keras
+    print("Loading baseline model from baseline_model.keras...")
     baseline_model = keras.models.load_model(
-        os.path.join(BASE_DIR, 'model', 'model_fixed.keras'),
+        os.path.join(BASE_DIR, 'model', 'baseline_model.keras'),
         custom_objects={'SumLayer': SumLayer},
         compile=False,
         safe_mode=False
     )
     baseline_model.compile(optimizer='adam', loss='binary_crossentropy')
-    print(f"Baseline model loaded successfully from model_fixed.keras")
+    print(f"Baseline model loaded successfully from baseline_model.keras")
     
 except Exception as e:
-    print(f" Failed to load model_fixed.keras: {e}")
+    print(f" Failed to load baseline_model.keras: {e}")
     BASELINE_MODEL_LOAD_ERROR = str(e)
     baseline_model = None
 
@@ -301,10 +301,11 @@ def predict_proposed(text):
         # Get prediction
         with torch.no_grad():
             logits = proposed_model(input_ids, attention_mask)
-            probabilities = torch.softmax(logits, dim=1)[0]
-            probability = probabilities[1].item()  # Probability of sarcastic class
-            prediction = 1 if probability > 0.5 else 0
-            confidence = probability * 100 if prediction == 1 else (1 - probability) * 100
+            probabilities_tensor = torch.softmax(logits, dim=1)[0]
+            prediction = torch.argmax(probabilities_tensor).item()
+            prob_not_sarcastic = probabilities_tensor[0].item() * 100
+            prob_sarcastic = probabilities_tensor[1].item() * 100
+            confidence = prob_sarcastic if prediction == 1 else prob_not_sarcastic
         
         processing_time = (time.time() - start_time) * 1000
         
@@ -312,8 +313,8 @@ def predict_proposed(text):
             'isSarcastic': bool(prediction == 1),
             'confidence': round(confidence, 2),
             'probabilities': {
-                'not_sarcastic': round((1 - probability) * 100, 2),
-                'sarcastic': round(probability * 100, 2)
+                'not_sarcastic': round(prob_not_sarcastic, 2),
+                'sarcastic': round(prob_sarcastic, 2)
             },
             'processingTime': f'{round(processing_time, 0)}ms',
             'model': 'proposed'

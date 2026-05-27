@@ -163,6 +163,7 @@ def init_state() -> None:
             "fileName": "",
         },
         "uploaded_signature": None,
+        "current_example": None,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -752,6 +753,10 @@ def main() -> None:
             height=150,
         )
         st.session_state["text"] = text_value
+        
+        # Show indicator if an example is currently selected
+        if st.session_state["current_example"] is not None:
+            st.markdown(f"<div style='color: #5b21b6; font-weight: bold; font-size: 0.85rem;'>✓ Example {st.session_state['current_example']} loaded</div>", unsafe_allow_html=True)
 
         word_count = len([w for w in re.split(r"\s+", text_value.strip()) if w]) if text_value.strip() else 0
         if word_count > 200:
@@ -782,6 +787,7 @@ def main() -> None:
         if clear_clicked:
             st.session_state["text"] = ""
             st.session_state["results"] = None
+            st.session_state["current_example"] = None
             st.rerun()
 
     with st.container(border=True):
@@ -791,6 +797,7 @@ def main() -> None:
             with cols[index]:
                 if st.button(f"Example {index + 1}", key=f"example_{index}", width="stretch"):
                     st.session_state["text"] = sample
+                    st.session_state["current_example"] = index + 1
                     st.rerun()
 
     if st.session_state["results"]:
@@ -820,7 +827,34 @@ def main() -> None:
         st.subheader("Upload Dataset for Batch Testing")
         st.caption("Use the guided steps below to compare both models on many text samples at once.")
 
-        uploaded_file = st.file_uploader("Choose Dataset File", type=["csv"])
+        with st.expander("📋 Accepted File Formats", expanded=False):
+            st.markdown("""
+**CSV Format:**
+- Required columns (in this exact order): `Corpus`, `Label`, `ID`, `Response Text`
+- Label must be: `sarc` (sarcastic) or `notsarc` (not sarcastic)
+- ID must be a number
+- Example:
+  ```
+  Corpus,Label,ID,Response Text
+  ignored,sarc,1,Oh great another Monday
+  ignored,notsarc,2,Thank you for your help
+  ```
+
+**JSON Format:**
+- Can be an array or single object
+- Text field: `text`, `comment`, `sentence`, `response`, `content`, or `Response Text`
+- Label field: `label`, `sarcastic`, `is_sarcastic`, or `Label`
+- Supported label values: `sarc`/`sarcastic`/`1`/`true` (for sarcasm) or `notsarc`/`not sarcastic`/`0`/`false` (for non-sarcasm)
+- Example:
+  ```json
+  [
+    {"text": "Oh great another Monday", "label": "sarc"},
+    {"text": "Thank you for your help", "label": "notsarc"}
+  ]
+  ```
+            """)
+
+        uploaded_file = st.file_uploader("Choose Dataset File", type=["csv", "json"])
 
         if uploaded_file is not None:
             signature = (uploaded_file.name, uploaded_file.size)
