@@ -1,4 +1,5 @@
 import csv
+import gc
 import io
 import json
 import os
@@ -536,6 +537,12 @@ def process_dataset() -> None:
     if not dataset:
         return
 
+    # Limit dataset size to prevent memory exhaustion on Streamlit Cloud
+    max_samples = 200
+    if len(dataset) > max_samples:
+        st.warning(f"Dataset limited to {max_samples} samples (original: {len(dataset)}) to prevent resource exhaustion.")
+        dataset = dataset[:max_samples]
+
     st.session_state["dataset_results"] = []
     st.session_state["show_all_results"] = False
 
@@ -543,7 +550,7 @@ def process_dataset() -> None:
     status = st.empty()
 
     results: List[Dict[str, Any]] = []
-    batch_size = 5
+    batch_size = 3
     total = len(dataset)
 
     for start in range(0, total, batch_size):
@@ -583,6 +590,8 @@ def process_dataset() -> None:
         progress_value = min(end / total, 1.0)
         progress.progress(progress_value)
         status.info(f"Processing... ({end}/{total})")
+        # Force garbage collection after each batch to free memory
+        gc.collect()
 
     progress.progress(1.0)
     status.success("Dataset processing complete.")
