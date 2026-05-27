@@ -164,7 +164,6 @@ def init_state() -> None:
             "fileName": "",
         },
         "uploaded_signature": None,
-        "current_example": None,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -762,10 +761,6 @@ def main() -> None:
             height=150,
         )
         st.session_state["text"] = text_value
-        
-        # Show indicator if an example is currently selected
-        if st.session_state["current_example"] is not None:
-            st.markdown(f"<div style='color: #5b21b6; font-weight: bold; font-size: 0.85rem;'>✓ Example {st.session_state['current_example']} loaded</div>", unsafe_allow_html=True)
 
         word_count = len([w for w in re.split(r"\s+", text_value.strip()) if w]) if text_value.strip() else 0
         if word_count > 200:
@@ -796,7 +791,6 @@ def main() -> None:
         if clear_clicked:
             st.session_state["text"] = ""
             st.session_state["results"] = None
-            st.session_state["current_example"] = None
             st.rerun()
 
     with st.container(border=True):
@@ -806,7 +800,6 @@ def main() -> None:
             with cols[index]:
                 if st.button(f"Example {index + 1}", key=f"example_{index}", width="stretch"):
                     st.session_state["text"] = sample
-                    st.session_state["current_example"] = index + 1
                     st.rerun()
 
     if st.session_state["results"]:
