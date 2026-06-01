@@ -195,10 +195,10 @@ try:
     proposed_model.load_state_dict(state_dict)
     proposed_model.to(device)
     proposed_model.eval()
-    print(f"✓ Proposed model (PyTorch) loaded successfully on {device}")
+    print(f"[OK] Proposed model (PyTorch) loaded successfully on {device}")
 except Exception as e:
     import traceback
-    print(f"✗ Error loading proposed model: {e}")
+    print(f"[ERROR] Error loading proposed model: {e}")
     print(f"Traceback: {traceback.format_exc()}")
     PROPOSED_MODEL_LOAD_ERROR = str(e)
     proposed_model = None
