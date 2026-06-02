@@ -269,35 +269,65 @@ def apply_custom_style() -> None:
 
             /* ========== TABS ========== */
             div[role="tablist"] {
-                background: #ffffff;
-                border-bottom: 2px solid #e0d9f0;
+                background: linear-gradient(135deg, #ffffff 0%, #faf8ff 100%);
+                border-bottom: 3px solid #7c3aed;
                 padding-bottom: 0;
-                border-radius: 12px 12px 0 0;
+                border-radius: 16px 16px 0 0;
                 display: flex !important;
-                justify-content: center !important;
-                width: fit-content !important;
-                margin: 0 auto !important;
+                justify-content: space-around !important;
+                width: 100% !important;
+                margin: 0 !important;
+                gap: 8px;
+                padding: 8px;
+                box-shadow: 0 4px 16px rgba(124, 58, 237, 0.15);
             }
 
             div[role="tab"] {
-                color: #8b7a9b !important;
-                border-radius: 8px 8px 0 0;
+                color: #6b5b95 !important;
+                border-radius: 12px;
                 transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                font-weight: 600;
-                font-size: 15px;
-                padding: 14px 24px !important;
+                font-weight: 700;
+                font-size: 16px;
+                padding: 18px 28px !important;
+                flex: 1 !important;
+                text-align: center !important;
+                border: 2px solid transparent;
+                background: #f3e8ff;
+                letter-spacing: 0.3px;
+                text-transform: uppercase;
             }
 
-            div[role="tab"][aria-selected="true"] {
-                color: #7c3aed !important;
-                border-bottom: 3px solid #7c3aed !important;
-                background: #faf8ff;
+            div[role="tab"] span,
+            div[role="tab"] a,
+            div[role="tab"] button {
+                font-weight: 700 !important;
+            }
+
+            div[role="tab"][aria-selected="true"],
+            div[role="tab"][aria-selected="true"] span,
+            div[role="tab"][aria-selected="true"] a,
+            div[role="tab"][aria-selected="true"] button {
+                color: #ffffff !important;
+                border: 2px solid #7c3aed !important;
+                background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%) !important;
                 animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+                box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4) !important;
+                font-weight: 900 !important;
+                font-size: 17px !important;
+                letter-spacing: 0.8px;
+                text-shadow: 
+                    -1px -1px 0 rgba(0, 0, 0, 0.4),
+                    1px -1px 0 rgba(0, 0, 0, 0.4),
+                    -1px 1px 0 rgba(0, 0, 0, 0.4),
+                    1px 1px 0 rgba(0, 0, 0, 0.4);
             }
 
             div[role="tab"]:hover {
                 color: #7c3aed !important;
-                background: #f5f0ff;
+                background: #e9d5ff;
+                border: 2px solid #7c3aed;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
             }
 
             /* ========== EXPANDERS ========== */

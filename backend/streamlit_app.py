@@ -52,9 +52,9 @@ def main() -> None:
 
     # Create tabs
     tab_predict, tab_batch, tab_analytics = st.tabs([
-        "Predict",
-        "Batch Testing",
-        "Model Analytics"
+        "**PREDICT**",
+        "**BATCH TESTING**",
+        "**MODEL ANALYTICS**"
     ])
 
     # Render tabs
