@@ -273,6 +273,10 @@ def apply_custom_style() -> None:
                 border-bottom: 2px solid #e0d9f0;
                 padding-bottom: 0;
                 border-radius: 12px 12px 0 0;
+                display: flex !important;
+                justify-content: center !important;
+                width: fit-content !important;
+                margin: 0 auto !important;
             }
 
             div[role="tab"] {
