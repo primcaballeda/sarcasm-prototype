@@ -359,8 +359,8 @@ def render_analytics_tab() -> None:
 
         table_data.append({
             "Metric": display_name,
-            "GloVe": f"{baseline_val:.2f}%",
-            "BERT": f"{proposed_val:.2f}%",
+            BASELINE_MODEL_NAME: f"{baseline_val:.2f}%",
+            PROPOSED_MODEL_NAME: f"{proposed_val:.2f}%",
             "Improvement": diff_str
         })
 

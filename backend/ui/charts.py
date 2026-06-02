@@ -143,14 +143,14 @@ def render_batch_results_gauges(dataset_results: List[Dict[str, Any]]) -> None:
 
     with col1:
         st.metric(
-            label="GloVe Accuracy",
+            label=f"{BASELINE_MODEL_NAME} Accuracy",
             value=f"{baseline_acc:.1f}%",
             delta=None,
         )
 
     with col2:
         st.metric(
-            label="BERT Accuracy",
+            label=f"{PROPOSED_MODEL_NAME} Accuracy",
             value=f"{proposed_acc:.1f}%",
             delta=f"{improvement:+.1f}%" if improvement != 0 else "0%",
         )
@@ -165,7 +165,7 @@ def render_batch_results_gauges(dataset_results: List[Dict[str, Any]]) -> None:
     with col4:
         improvement_display = f"{improvement:+.1f}%" if improvement != 0 else "0%"
         st.metric(
-            label="BERT Improvement",
+            label=f"{PROPOSED_MODEL_NAME} Improvement",
             value=improvement_display,
             delta=None,
         )
