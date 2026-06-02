@@ -241,10 +241,10 @@ def render_batch_testing_tab() -> None:
                 st.metric("Total Samples", stats["total"])
             with col2:
                 baseline_acc = stats["baseline"]["accuracy"]
-                st.metric("GloVe Accuracy", f"{baseline_acc}%")
+                st.metric(f"{BASELINE_MODEL_NAME} Accuracy", f"{baseline_acc}%")
             with col3:
                 proposed_acc = stats["proposed"]["accuracy"]
-                st.metric("BERT Accuracy", f"{proposed_acc}%")
+                st.metric(f"{PROPOSED_MODEL_NAME} Accuracy", f"{proposed_acc}%")
 
         # Gauges
         st.markdown("### Performance Summary")
@@ -284,10 +284,10 @@ def render_batch_testing_tab() -> None:
             output = {
                 "ID": row["id"],
                 "Text": row["text"][:50] + "..." if len(row["text"]) > 50 else row["text"],
-                "GloVe": "Sarc" if row["baseline"]["predicted"] else "Not",
-                "GloVe %": f"{row['baseline']['confidence']:.0f}%",
-                "BERT": "Sarc" if row["proposed"]["predicted"] else "Not",
-                "BERT %": f"{row['proposed']['confidence']:.0f}%",
+                BASELINE_MODEL_NAME: "Sarc" if row["baseline"]["predicted"] else "Not",
+                f"{BASELINE_MODEL_NAME} %": f"{row['baseline']['confidence']:.0f}%",
+                PROPOSED_MODEL_NAME: "Sarc" if row["proposed"]["predicted"] else "Not",
+                f"{PROPOSED_MODEL_NAME} %": f"{row['proposed']['confidence']:.0f}%",
             }
             if has_labels:
                 output["Actual"] = "Sarc" if row.get("label") else "Not"
