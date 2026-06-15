@@ -9,17 +9,17 @@
         "timestamp": "2026-05-12 17:42:38"
     },
     "performance_metrics": {
-        "accuracy": 0.7038,
-        "precision": 0.6950,
-        "sensitivity_recall": 0.7081,
-        "specificity": 0.6997,
-        "f1_score": 0.7015
+        "accuracy": 0.6726,
+        "precision": 0.6483,
+        "sensitivity_recall": 0.7298,
+        "specificity": 0.6173,
+        "f1_score": 0.6866
     },
     "confusion_matrix": {
-        "true_negatives": 530,
-        "false_positives": 186,
-        "false_negatives": 220,
-        "true_positives": 472
+        "true_negatives": 442,
+        "false_positives": 274,
+        "false_negatives": 187,
+        "true_positives": 505
     },
     "dataset_info": {
         "train_samples": 6570,

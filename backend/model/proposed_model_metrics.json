@@ -1,36 +1,36 @@
 {
-    "model_info": {
-        "model_type": 5,
-        "model_name": "sarcasm_model.pt",
-        "architecture": "CNN + BiLSTM + Multi-Head Attention with BERT embeddings",
-        "epochs": 15,
-        "batch_size": 32,
-        "learning_rate": 0.001,
-        "optimizer": "Adam",
-        "bert_model": "bert-base-uncased",
-        "bert_trainable": false,
-        "hidden_units": 128,
-        "num_heads": 2,
-        "dropout_rate": 0.3,
-        "timestamp": "2026-05-12 18:10:32"
-    },
-    "performance_metrics": {
-        "accuracy": 0.7528409090909091,
-        "precision": 0.7253164556962025,
-        "sensitivity_recall": 0.8139204545454546,
-        "specificity": 0.6917613636363636,
-        "f1_score": 0.7670682730923695,
-        "test_loss": 0.6492576500908895
-    },
-    "confusion_matrix": {
-        "true_negatives": 487,
-        "false_positives": 217,
-        "false_negatives": 131,
-        "true_positives": 573
-    },
-    "dataset_info": {
-        "train_samples": 6570,
-        "test_samples": 1408,
-        "vocab_size": 30522
-    }
+  "model_info": {
+    "model_type": 5,
+    "model_name": "sarcasm_model.pt",
+    "architecture": "CNN + BiLSTM + Multi-Head Attention with BERT embeddings",
+    "epochs": 10,
+    "batch_size": 32,
+    "learning_rate": 3e-05,
+    "optimizer": "Adam",
+    "bert_model": "bert-base-uncased",
+    "bert_trainable": false,
+    "hidden_units": 128,
+    "num_heads": 2,
+    "dropout_rate": 0.5,
+    "timestamp": "2026-06-10 19:11:17"
+  },
+  "performance_metrics": {
+    "accuracy": 0.7585227272727273,
+    "precision": 0.7527777777777778,
+    "sensitivity_recall": 0.7698863636363636,
+    "specificity": 0.7471590909090909,
+    "f1_score": 0.7612359550561798,
+    "test_loss": 0.5031789934093301
+  },
+  "confusion_matrix": {
+    "true_negatives": 526,
+    "false_positives": 178,
+    "false_negatives": 162,
+    "true_positives": 542
+  },
+  "dataset_info": {
+    "train_samples": 6570,
+    "test_samples": 1408,
+    "vocab_size": 30522
+  }
 }

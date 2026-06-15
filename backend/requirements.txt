@@ -1,12 +1,19 @@
 streamlit
 altair
+
 flask==3.0.0
 flask-cors==4.0.0
+
 torch==2.2.2; python_version < "3.13"
 torch>=2.6.0,<3; python_version >= "3.13"
+
 tensorflow==2.17.1; python_version < "3.13"
 tensorflow>=2.20.0,<3; python_version >= "3.13"
+
+tf-keras
+
 transformers==4.35.0
 tokenizers==0.14.1
+
 numpy==1.24.3
 safetensors>=0.4.0
