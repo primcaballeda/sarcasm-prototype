@@ -318,7 +318,7 @@ def render_analytics_tab() -> None:
 - Architecture: CNN -> BiLSTM -> Attention
 - Epochs: {baseline_info.get('epochs', 'N/A')}
 - Batch Size: {baseline_info.get('batch_size', 'N/A')}
-- Optimizer: Adam (lr={baseline_info.get('learning_rate', 'N/A')})
+- Optimizer: Adam 
 - Vocab Size: {metrics.get('baseline', {}).get('dataset_info', {}).get('vocab_size', 'N/A'):,}
         """)
 
@@ -330,7 +330,7 @@ def render_analytics_tab() -> None:
 - Architecture: BERT -> CNN -> BiLSTM -> Multi-Head Attn
 - Epochs: {proposed_info.get('epochs', 'N/A')}
 - Batch Size: {proposed_info.get('batch_size', 'N/A')}
-- Optimizer: Adam (lr={proposed_info.get('learning_rate', 'N/A')})
+- Optimizer: Adam 
 - Attention Heads: {proposed_info.get('num_heads', 'N/A')}
         """)
 
