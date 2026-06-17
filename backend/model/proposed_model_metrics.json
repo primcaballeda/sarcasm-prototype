@@ -5,7 +5,6 @@
     "architecture": "CNN + BiLSTM + Multi-Head Attention with BERT embeddings",
     "epochs": 10,
     "batch_size": 32,
-    "learning_rate": 3e-05,
     "optimizer": "Adam",
     "bert_model": "bert-base-uncased",
     "bert_trainable": false,

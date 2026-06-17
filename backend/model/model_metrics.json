@@ -2,24 +2,23 @@
     "model_info": {
         "model_type": 5,
         "model_name": "model.h5",
-        "epochs": 15,
+        "epochs": 10,
         "batch_size": 32,
-        "learning_rate": 0.001,
         "optimizer": "Adam",
         "timestamp": "2026-05-12 17:42:38"
     },
     "performance_metrics": {
-        "accuracy": 0.6726,
-        "precision": 0.6483,
-        "sensitivity_recall": 0.7298,
-        "specificity": 0.6173,
-        "f1_score": 0.6866
+        "accuracy": 0.6626,
+        "precision": 0.6593,
+        "sensitivity_recall": 0.6488,
+        "specificity": 0.6760,
+        "f1_score": 0.6540
     },
     "confusion_matrix": {
-        "true_negatives": 442,
-        "false_positives": 274,
-        "false_negatives": 187,
-        "true_positives": 505
+        "true_negatives": 484,
+        "false_positives": 232,
+        "false_negatives": 243,
+        "true_positives": 449
     },
     "dataset_info": {
         "train_samples": 6570,
