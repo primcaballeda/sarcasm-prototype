@@ -14,277 +14,332 @@ import sys
 import urllib.request
 import tempfile
 import shutil
+import re
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for React frontend
+CORS(app)
 
-# Compute base directory relative to this file (backend folder)
+# ============================================================================
+# BASE DIRECTORY
+# ============================================================================
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Expose model load status for Streamlit UI / health checks
 PROPOSED_MODEL_LOAD_ERROR = None
 BASELINE_MODEL_LOAD_ERROR = None
 BASELINE_TOKENIZER_LOAD_ERROR = None
 BERT_TOKENIZER_SOURCE = None
 PROPOSED_MODEL_PATH = None
 
-# Device configuration for PyTorch
+# ============================================================================
+# DEVICE CONFIGURATION
+# ============================================================================
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"PyTorch device: {device}")
+
+# ============================================================================
+# PREPROCESSING TOOLS
+# ============================================================================
+
+nltk.download('stopwords', quiet=True)
+
+stop_words = set(stopwords.words('english'))
+stemmer = PorterStemmer()
+
+def preprocess_text(text):
+
+    # convert to lowercase
+    text = str(text).lower()
+
+    # remove punctuation, numbers, special characters
+    text = re.sub(r"[^a-zA-Z\s]", "", text)
+
+    # tokenize
+    words = text.split()
+
+    # remove stopwords
+    words = [word for word in words if word not in stop_words]
+
+    # stemming
+    words = [stemmer.stem(word) for word in words]
+
+    # join back into sentence
+    text = " ".join(words)
+
+    return text
 
 # ============================================================================
 # TOKENIZERS
 # ============================================================================
 
-# Load BERT tokenizer for Proposed Model
 bert_tokenizer_path = os.path.join(BASE_DIR, 'tokenizer')
+
 try:
+
     if os.path.exists(bert_tokenizer_path) and os.path.isdir(bert_tokenizer_path):
-        bert_tokenizer = BertTokenizer.from_pretrained(bert_tokenizer_path)
+
+        bert_tokenizer = BertTokenizer.from_pretrained(
+            bert_tokenizer_path
+        )
+
         BERT_TOKENIZER_SOURCE = "local"
+
         print("BERT tokenizer loaded from local directory")
+
     else:
         raise FileNotFoundError("Local tokenizer directory not found")
+
 except Exception as e:
+
     print(f"Could not load local BERT tokenizer: {e}")
+
     print("Downloading BERT tokenizer from HuggingFace...")
-    bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+
+    bert_tokenizer = BertTokenizer.from_pretrained(
+        'bert-base-uncased'
+    )
+
     BERT_TOKENIZER_SOURCE = "huggingface"
+
     print("BERT tokenizer loaded from HuggingFace")
 
-# Load Keras tokenizer for Baseline Model
 baseline_tokenizer = None
-max_len = 50  # Must match the training parameter
+max_len = 50
+
 try:
-    baseline_tokenizer_path = os.path.join(BASE_DIR, 'tokenizer', 'baseline_tokenizer.pkl')
+
+    baseline_tokenizer_path = os.path.join(
+        BASE_DIR,
+        'tokenizer',
+        'baseline_tokenizer.pkl'
+    )
+
     with open(baseline_tokenizer_path, 'rb') as f:
         baseline_tokenizer = pickle.load(f)
-    print(" Baseline (Keras) tokenizer loaded")
+
+    print("Baseline tokenizer loaded")
+
 except Exception as e:
-    print(f" Could not load baseline tokenizer: {e}")
-    print("   Please copy 'baseline_tokenizer.pkl' to backend/tokenizer/ directory")
+
+    print(f"Could not load baseline tokenizer: {e}")
+
     BASELINE_TOKENIZER_LOAD_ERROR = str(e)
+
     baseline_tokenizer = None
 
-
-def _download_file(url: str, dst_path: str) -> None:
-    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-    tmp_dir = tempfile.mkdtemp(prefix="sarcasm_model_")
-    try:
-        tmp_path = os.path.join(tmp_dir, "download.tmp")
-        urllib.request.urlretrieve(url, tmp_path)
-        shutil.move(tmp_path, dst_path)
-    finally:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-
-
-def _resolve_proposed_model_path() -> str:
-    """Resolve local proposed model weights path, optionally downloading if missing.
-
-    Streamlit Cloud typically does not include large files ignored by git.
-    Set `SARCASM_PROPOSED_MODEL_URL` (or `SARCASM_MODEL_PT_URL`) to a direct-download URL.
-    """
-    local_path = os.path.join(BASE_DIR, 'model', 'sarcasm_model.pt')
-    if os.path.exists(local_path):
-        return local_path
-
-    url = os.environ.get("SARCASM_PROPOSED_MODEL_URL") or os.environ.get("SARCASM_MODEL_PT_URL")
-    if not url:
-        raise FileNotFoundError(
-            "Proposed model weights not found at backend/model/sarcasm_model.pt. "
-            "If you deployed to Streamlit Cloud, that file is often excluded from git because it's large. "
-            "Provide a direct-download URL via env var SARCASM_PROPOSED_MODEL_URL."
-        )
-
-    cache_dir = os.environ.get("SARCASM_MODEL_CACHE_DIR") or os.path.join(
-        os.path.expanduser("~"), ".cache", "sarcasm-prototype"
-    )
-    cache_path = os.path.join(cache_dir, "sarcasm_model.pt")
-    if not os.path.exists(cache_path):
-        print(f"Downloading proposed model weights to cache: {cache_path}")
-        _download_file(url, cache_path)
-
-    if not os.path.exists(cache_path):
-        raise FileNotFoundError(
-            f"Tried downloading proposed model weights but file does not exist at: {cache_path}"
-        )
-
-    return cache_path
-
 # ============================================================================
-# PROPOSED MODEL (PyTorch - BERT + CNN + BiLSTM + Multi-Head Attention)
+# PROPOSED MODEL
 # ============================================================================
 
 class SarcasmDetectorProposed(nn.Module):
-    """Proposed Model: BERT + CNN + BiLSTM + Multi-Head Attention"""
-    def __init__(self, bert_model='bert-base-uncased', hidden_size=128, num_classes=2):
+
+    def __init__(
+        self,
+        bert_model='bert-base-uncased',
+        hidden_size=128,
+        num_classes=2
+    ):
+
         super(SarcasmDetectorProposed, self).__init__()
-        
+
         self.bert = BertModel.from_pretrained(bert_model)
-        # Freeze BERT parameters
+
         for param in self.bert.parameters():
             param.requires_grad = False
-        
+
         bert_hidden = 768
-        
-        # CNN layers (matching saved model)
-        self.conv1 = nn.Conv1d(in_channels=bert_hidden, out_channels=32, kernel_size=5, padding=2)
+
+        self.conv1 = nn.Conv1d(
+            in_channels=bert_hidden,
+            out_channels=32,
+            kernel_size=5,
+            padding=2
+        )
+
         self.dropout_conv = nn.Dropout(0.3)
-        
-        # BiLSTM layer
-        self.bilstm = nn.LSTM(32, hidden_size, bidirectional=True, batch_first=True, dropout=0.3)
-        
-        # Multi-head attention
+
+        self.bilstm = nn.LSTM(
+            32,
+            hidden_size,
+            bidirectional=True,
+            batch_first=True,
+            dropout=0.3
+        )
+
         lstm_out_size = hidden_size * 2
-        self.mha = nn.MultiheadAttention(embed_dim=lstm_out_size, num_heads=2, dropout=0.3, batch_first=True)
-        
-        # Layer normalization
+
+        self.mha = nn.MultiheadAttention(
+            embed_dim=lstm_out_size,
+            num_heads=2,
+            dropout=0.3,
+            batch_first=True
+        )
+
         self.layer_norm = nn.LayerNorm(lstm_out_size)
-        
-        # Fully connected layers
+
         self.dropout = nn.Dropout(0.5)
+
         self.fc1 = nn.Linear(lstm_out_size, 256)
+
         self.dropout1 = nn.Dropout(0.3)
+
         self.fc2 = nn.Linear(256, 128)
+
         self.output = nn.Linear(128, num_classes)
+
         self.relu = nn.ReLU()
-        
+
     def forward(self, input_ids, attention_mask):
-        # BERT embeddings
-        bert_output = self.bert(input_ids=input_ids, attention_mask=attention_mask)
-        x = bert_output.last_hidden_state  # (batch_size, seq_len, 768)
-        
-        # CNN layers
-        x = x.permute(0, 2, 1)  # (batch, channels, seq_len) for Conv1d
+
+        bert_output = self.bert(
+            input_ids=input_ids,
+            attention_mask=attention_mask
+        )
+
+        x = bert_output.last_hidden_state
+
+        x = x.permute(0, 2, 1)
+
         x = self.relu(self.conv1(x))
-        x = x.permute(0, 2, 1)  # Back to (batch, seq_len, channels)
+
+        x = x.permute(0, 2, 1)
+
         x = self.dropout_conv(x)
-        
-        # BiLSTM
+
         lstm_out, _ = self.bilstm(x)
-        
-        # Multi-head attention
-        mha_out, _ = self.mha(lstm_out, lstm_out, lstm_out)
-        x = self.layer_norm(lstm_out + mha_out)  # Residual connection
-        
-        # Global average pooling
+
+        mha_out, _ = self.mha(
+            lstm_out,
+            lstm_out,
+            lstm_out
+        )
+
+        x = self.layer_norm(lstm_out + mha_out)
+
         x = x.mean(dim=1)
-        
-        # Fully connected layers
+
         x = self.dropout(x)
+
         x = self.relu(self.fc1(x))
+
         x = self.dropout1(x)
+
         x = self.relu(self.fc2(x))
+
         logits = self.output(x)
-        
+
         return logits
 
+# ============================================================================
+# LOAD PROPOSED MODEL
+# ============================================================================
 
-# Load Proposed Model (PyTorch)
 proposed_model = None
+
 try:
-    print("Initializing Proposed model architecture...")
+
     proposed_model = SarcasmDetectorProposed()
-    print("Loading proposed model weights...")
-    model_path = _resolve_proposed_model_path()
-    PROPOSED_MODEL_PATH = model_path
-    print(f"Model path: {model_path}")
-    print(f"Model exists: {os.path.exists(model_path)}")
-    state_dict = torch.load(model_path, map_location=device)
-    print(f"Loaded state dict with keys: {list(state_dict.keys())[:5]}...")
+
+    model_path = os.path.join(
+        BASE_DIR,
+        'model',
+        'sarcasm_model.pt'
+    )
+
+    state_dict = torch.load(
+        model_path,
+        map_location=device
+    )
+
     proposed_model.load_state_dict(state_dict)
+
     proposed_model.to(device)
+
     proposed_model.eval()
-    print(f"[OK] Proposed model (PyTorch) loaded successfully on {device}")
+
+    print(f"Proposed model loaded on {device}")
+
 except Exception as e:
-    import traceback
-    print(f"[ERROR] Error loading proposed model: {e}")
-    print(f"Traceback: {traceback.format_exc()}")
+
+    print(f"Error loading proposed model: {e}")
+
     PROPOSED_MODEL_LOAD_ERROR = str(e)
+
     proposed_model = None
 
 # ============================================================================
-# BASELINE MODEL (TensorFlow/Keras - BiLSTM + Attention)
+# BASELINE MODEL
 # ============================================================================
 
-# Custom layer to replace Lambda (used in model_fixed.keras)
 class SumLayer(keras.layers.Layer):
-    """Custom layer that replaces Lambda(lambda x: tf.reduce_sum(x, axis=-2))"""
+
     def call(self, inputs, mask=None):
-        # Accept mask parameter like Lambda does
         return tf.reduce_sum(inputs, axis=-2)
-    
+
     def compute_mask(self, inputs, mask=None):
-        # Lambda doesn't output a mask, so neither should we
         return None
-    
+
     def get_config(self):
         return super().get_config()
 
-# Load Baseline Model (Keras)
 baseline_model = None
+
 try:
-    # Load baseline_model.keras
-    print("Loading baseline model from baseline_model.keras...")
+
     baseline_model = keras.models.load_model(
         os.path.join(BASE_DIR, 'model', 'baseline_model.keras'),
         custom_objects={'SumLayer': SumLayer},
         compile=False,
         safe_mode=False
     )
-    baseline_model.compile(optimizer='adam', loss='binary_crossentropy')
-    print(f"Baseline model loaded successfully from baseline_model.keras")
-    
+
+    baseline_model.compile(
+        optimizer='adam',
+        loss='binary_crossentropy'
+    )
+
+    print("Baseline model loaded successfully")
+
 except Exception as e:
-    print(f" Failed to load baseline_model.keras: {e}")
+
+    print(f"Failed to load baseline model: {e}")
+
     BASELINE_MODEL_LOAD_ERROR = str(e)
+
     baseline_model = None
 
-
-def get_model_status() -> dict:
-    """Return a lightweight status payload for UIs/health checks."""
-    return {
-        "device": str(device),
-        "tokenizers": {
-            "bert": {
-                "loaded": bert_tokenizer is not None,
-                "source": BERT_TOKENIZER_SOURCE,
-            },
-            "baseline": {
-                "loaded": baseline_tokenizer is not None,
-                "error": BASELINE_TOKENIZER_LOAD_ERROR,
-            },
-        },
-        "models": {
-            "proposed": {
-                "loaded": proposed_model is not None,
-                "path": PROPOSED_MODEL_PATH,
-                "error": PROPOSED_MODEL_LOAD_ERROR,
-            },
-            "baseline": {
-                "loaded": baseline_model is not None,
-                "error": BASELINE_MODEL_LOAD_ERROR,
-            },
-        },
-    }
-
 # ============================================================================
-# PREDICTION FUNCTIONS
+# PROPOSED PREDICTION
 # ============================================================================
 
 def predict_proposed(text):
-    """Predict using Proposed model (PyTorch - BERT + CNN + BiLSTM + MHA)"""
+
     if proposed_model is None:
+
         return {
             'isSarcastic': False,
             'confidence': 0.0,
             'error': 'Proposed model not loaded'
         }
-    
+
     start_time = time.time()
-    
+
     try:
-        # Tokenize input with BERT tokenizer
+
+        # ============================================================
+        # APPLY PREPROCESSING
+        # ============================================================
+
+        text = preprocess_text(text)
+
+        # ============================================================
+        # BERT TOKENIZATION
+        # ============================================================
+
         encoded = bert_tokenizer.encode_plus(
             text,
             add_special_tokens=True,
@@ -294,291 +349,168 @@ def predict_proposed(text):
             return_attention_mask=True,
             return_tensors='pt'
         )
-        
+
         input_ids = encoded['input_ids'].to(device)
+
         attention_mask = encoded['attention_mask'].to(device)
-        
-        # Get prediction
+
+        # ============================================================
+        # MODEL PREDICTION
+        # ============================================================
+
         with torch.no_grad():
-            logits = proposed_model(input_ids, attention_mask)
-            probabilities_tensor = torch.softmax(logits, dim=1)[0]
-            prediction = torch.argmax(probabilities_tensor).item()
+
+            logits = proposed_model(
+                input_ids,
+                attention_mask
+            )
+
+            probabilities_tensor = torch.softmax(
+                logits,
+                dim=1
+            )[0]
+
+            prediction = torch.argmax(
+                probabilities_tensor
+            ).item()
+
             prob_not_sarcastic = probabilities_tensor[0].item() * 100
+
             prob_sarcastic = probabilities_tensor[1].item() * 100
-            confidence = prob_sarcastic if prediction == 1 else prob_not_sarcastic
-        
-        processing_time = (time.time() - start_time) * 1000
-        
+
+            confidence = (
+                prob_sarcastic
+                if prediction == 1
+                else prob_not_sarcastic
+            )
+
+        processing_time = (
+            time.time() - start_time
+        ) * 1000
+
         return {
+
             'isSarcastic': bool(prediction == 1),
+
             'confidence': round(confidence, 2),
+
             'probabilities': {
-                'not_sarcastic': round(prob_not_sarcastic, 2),
-                'sarcastic': round(prob_sarcastic, 2)
+
+                'not_sarcastic': round(
+                    prob_not_sarcastic,
+                    2
+                ),
+
+                'sarcastic': round(
+                    prob_sarcastic,
+                    2
+                )
             },
+
             'processingTime': f'{round(processing_time, 0)}ms',
+
             'model': 'proposed'
         }
+
     except Exception as e:
+
         print(f"Proposed model prediction error: {e}")
+
         return {
+
             'isSarcastic': False,
+
             'confidence': 0.0,
+
             'error': str(e)
         }
 
+# ============================================================================
+# BASELINE PREDICTION
+# ============================================================================
 
 def predict_baseline(text):
-    """Predict using Baseline model (Keras - GloVe + CNN + BiLSTM + Attention)"""
+
     if baseline_model is None:
+
         return {
             'isSarcastic': False,
             'confidence': 0.0,
             'error': 'Baseline model not loaded'
         }
-    
+
     if baseline_tokenizer is None:
+
         return {
             'isSarcastic': False,
             'confidence': 0.0,
             'error': 'Baseline tokenizer not loaded'
         }
-    
+
     start_time = time.time()
-    
+
     try:
-        # Tokenize input with Keras tokenizer (same as training)
+
         sequence = baseline_tokenizer.texts_to_sequences([text])
-        padded_sequence = pad_sequences(sequence, maxlen=max_len, padding='post')
-        
-        # Get prediction
-        prediction = baseline_model.predict(padded_sequence, verbose=0)
+
+        padded_sequence = pad_sequences(
+            sequence,
+            maxlen=max_len,
+            padding='post'
+        )
+
+        prediction = baseline_model.predict(
+            padded_sequence,
+            verbose=0
+        )
+
         probability = float(prediction[0][0])
-        
+
         is_sarcastic = probability > 0.5
-        confidence = probability * 100 if is_sarcastic else (1 - probability) * 100
-        
-        processing_time = (time.time() - start_time) * 1000
-        
+
+        confidence = (
+            probability * 100
+            if is_sarcastic
+            else (1 - probability) * 100
+        )
+
+        processing_time = (
+            time.time() - start_time
+        ) * 1000
+
         return {
+
             'isSarcastic': bool(is_sarcastic),
+
             'confidence': round(confidence, 2),
+
             'probabilities': {
-                'not_sarcastic': round((1 - probability) * 100, 2),
-                'sarcastic': round(probability * 100, 2)
+
+                'not_sarcastic': round(
+                    (1 - probability) * 100,
+                    2
+                ),
+
+                'sarcastic': round(
+                    probability * 100,
+                    2
+                )
             },
+
             'processingTime': f'{round(processing_time, 0)}ms',
+
             'model': 'baseline'
         }
+
     except Exception as e:
+
         print(f"Baseline model prediction error: {e}")
+
         return {
+
             'isSarcastic': False,
+
             'confidence': 0.0,
+
             'error': str(e)
         }
-
-# ============================================================================
-# API ENDPOINTS
-# ============================================================================
-
-@app.route('/api/predict', methods=['POST'])
-def predict():
-    """
-    Default prediction endpoint (uses proposed model by default)
-    Expects JSON: {"text": "Your text here", "model": "proposed|baseline|both"}
-    """
-    try:
-        data = request.get_json()
-        text = data.get('text', '')
-        model_choice = data.get('model', 'proposed')  # Default to proposed
-        
-        if not text or not text.strip():
-            return jsonify({'error': 'No text provided'}), 400
-        
-        if model_choice == 'both':
-            return jsonify({
-                'proposed': predict_proposed(text),
-                'baseline': predict_baseline(text)
-            })
-        elif model_choice == 'baseline':
-            return jsonify(predict_baseline(text))
-        else:  # proposed or default
-            return jsonify(predict_proposed(text))
-    
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/predict/proposed', methods=['POST'])
-def predict_proposed_endpoint():
-    """Predict using Proposed model only"""
-    try:
-        data = request.get_json()
-        text = data.get('text', '')
-        
-        if not text or not text.strip():
-            return jsonify({'error': 'No text provided'}), 400
-        
-        result = predict_proposed(text)
-        return jsonify(result)
-    
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/predict/baseline', methods=['POST'])
-def predict_baseline_endpoint():
-    """Predict using Baseline model only"""
-    try:
-        data = request.get_json()
-        text = data.get('text', '')
-        
-        if not text or not text.strip():
-            return jsonify({'error': 'No text provided'}), 400
-        
-        result = predict_baseline(text)
-        return jsonify(result)
-    
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/predict/compare', methods=['POST'])
-def predict_compare():
-    """Compare predictions from both models"""
-    try:
-        data = request.get_json()
-        text = data.get('text', '')
-        
-        if not text or not text.strip():
-            return jsonify({'error': 'No text provided'}), 400
-        
-        proposed_result = predict_proposed(text)
-        baseline_result = predict_baseline(text)
-        
-        return jsonify({
-            'text': text,
-            'proposed': proposed_result,
-            'baseline': baseline_result,
-            'agreement': proposed_result.get('isSarcastic') == baseline_result.get('isSarcastic')
-        })
-    
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/predict_batch', methods=['POST'])
-def predict_batch():
-    """
-    Batch prediction endpoint
-    Expects JSON: {"texts": ["text1", "text2", ...], "model": "proposed|baseline"}
-    """
-    try:
-        data = request.get_json()
-        texts = data.get('texts', [])
-        model_choice = data.get('model', 'proposed')
-        
-        if not texts:
-            return jsonify({'error': 'No texts provided'}), 400
-        
-        results = []
-        predict_fn = predict_proposed if model_choice == 'proposed' else predict_baseline
-        
-        for text in texts:
-            if text and text.strip():
-                result = predict_fn(text)
-                results.append(result)
-            else:
-                results.append({'error': 'Empty text'})
-        
-        return jsonify({'results': results})
-    
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/health', methods=['GET'])
-def health():
-    """Check if the API is running and which models are loaded"""
-    return jsonify({
-        'status': 'healthy',
-        'models': {
-            'proposed': {
-                'loaded': proposed_model is not None,
-                'type': 'PyTorch (BERT + CNN + BiLSTM + MHA)',
-                'device': str(device)
-            },
-            'baseline': {
-                'loaded': baseline_model is not None,
-                'type': 'TensorFlow/Keras (BiLSTM + Attention)'
-            }
-        }
-    })
-
-
-@app.route('/api/metrics', methods=['GET'])
-def get_metrics():
-    """Get both baseline and proposed model performance metrics"""
-    import json
-    try:
-        baseline_metrics = None
-        proposed_metrics = None
-        
-        # Load baseline metrics
-        baseline_path = os.path.join(BASE_DIR, 'model', 'model_metrics.json')
-        if os.path.exists(baseline_path):
-            with open(baseline_path, 'r') as f:
-                baseline_metrics = json.load(f)
-        
-        # Load proposed metrics
-        proposed_path = os.path.join(BASE_DIR, 'model', 'proposed_model_metrics.json')
-        if os.path.exists(proposed_path):
-            with open(proposed_path, 'r') as f:
-                proposed_metrics = json.load(f)
-        
-        if baseline_metrics is None and proposed_metrics is None:
-            return jsonify({
-                'status': 'not_found',
-                'message': 'No metrics files found. Train the models first to generate metrics.'
-            }), 404
-        
-        return jsonify({
-            'status': 'success',
-            'baseline': baseline_metrics,
-            'proposed': proposed_metrics
-        })
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-
-if __name__ == '__main__':
-    print("\n" + "="*80)
-    print("🚀 DUAL MODEL SARCASM DETECTION API")
-    print("="*80)
-    print(f" Proposed Model: {'Loaded' if proposed_model else 'Not Loaded'}")
-    print(f" Baseline Model: {'Loaded' if baseline_model else 'Not Loaded'}")
-    print("\nAvailable Endpoints:")
-    print("  POST /api/predict              - Use proposed model (or specify 'model' param)")
-    print("  POST /api/predict/proposed     - Use proposed model only")
-    print("  POST /api/predict/baseline     - Use baseline model only")
-    print("  POST /api/predict/compare      - Compare both models")
-    print("  POST /api/predict_batch        - Batch predictions")
-    print("  GET  /api/health               - Health check")
-    print("  GET  /api/metrics              - Get baseline model performance metrics")
-    print("="*80 + "\n")
-
-    # Streamlit executes scripts differently; avoid launching Flask there.
-    is_streamlit_runtime = (
-        'streamlit' in sys.modules
-        or os.environ.get('STREAMLIT_SERVER_PORT') is not None
-    )
-
-    if is_streamlit_runtime:
-        print('Streamlit runtime detected. Skipping Flask app.run().')
-    else:
-        port = int(os.environ.get('PORT', 5000))
-        app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
