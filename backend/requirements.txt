@@ -17,3 +17,5 @@ tokenizers==0.14.1
 
 numpy==1.24.3
 safetensors>=0.4.0
+
+nltk==3.8.1
