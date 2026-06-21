@@ -14,7 +14,7 @@ PROPOSED_MODEL_NAME = "BERT + CNN + BiLSTM + Multi-Head Attention"
 # Processing Limits
 MAX_WORDS = 200
 MAX_DATASET_SAMPLES = 200
-BATCH_PROCESSING_SIZE = 3
+BATCH_PROCESSING_SIZE = 10
 
 # File Paths
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -26,8 +26,8 @@ PROPOSED_METRICS_PATH = os.path.join(MODEL_DIR, "proposed_model_metrics.json")
 EXAMPLES = [
     "Oh great, another Monday morning meeting!",
     "Yeah right, like that's ever going to happen...",
-    "I love working on weekends!",
-    "Thank you for your help today.",
+    "Yeah, I absolutely love working on weekends while everyone else is out relaxing. ",
+    "Thank you for your help today. I appreciate it.",
 ]
 
 # Color Palette

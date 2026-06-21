@@ -45,10 +45,6 @@ print(f"PyTorch device: {device}")
 # PREPROCESSING TOOLS
 # ============================================================================
 
-nltk.download('stopwords', quiet=True)
-
-stop_words = set(stopwords.words('english'))
-stemmer = PorterStemmer()
 
 def preprocess_text(text):
 
@@ -60,12 +56,6 @@ def preprocess_text(text):
 
     # tokenize
     words = text.split()
-
-    # remove stopwords
-    words = [word for word in words if word not in stop_words]
-
-    # stemming
-    words = [stemmer.stem(word) for word in words]
 
     # join back into sentence
     text = " ".join(words)
@@ -160,14 +150,14 @@ class SarcasmDetectorProposed(nn.Module):
             padding=2
         )
 
-        self.dropout_conv = nn.Dropout(0.3)
+        self.dropout_conv = nn.Dropout(0.5)
 
         self.bilstm = nn.LSTM(
             32,
             hidden_size,
             bidirectional=True,
             batch_first=True,
-            dropout=0.3
+            dropout=0.5
         )
 
         lstm_out_size = hidden_size * 2
@@ -175,7 +165,7 @@ class SarcasmDetectorProposed(nn.Module):
         self.mha = nn.MultiheadAttention(
             embed_dim=lstm_out_size,
             num_heads=2,
-            dropout=0.3,
+            dropout=0.5,
             batch_first=True
         )
 
@@ -185,7 +175,7 @@ class SarcasmDetectorProposed(nn.Module):
 
         self.fc1 = nn.Linear(lstm_out_size, 256)
 
-        self.dropout1 = nn.Dropout(0.3)
+        self.dropout1 = nn.Dropout(0.5)
 
         self.fc2 = nn.Linear(256, 128)
 
