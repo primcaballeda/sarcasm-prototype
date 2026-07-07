@@ -269,8 +269,8 @@ def apply_custom_style() -> None:
 
             /* ========== TABS ========== */
             div[role="tablist"] {
-                background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%);
-                border-bottom: 3px solid #9ca3af;
+                background: #ffffff;
+                border-bottom: 2px solid #d1d5db;
                 padding-bottom: 0;
                 border-radius: 16px 16px 0 0;
                 display: flex !important;
@@ -279,7 +279,7 @@ def apply_custom_style() -> None:
                 margin: 0 !important;
                 gap: 8px;
                 padding: 8px;
-                box-shadow: 0 4px 16px rgba(17, 24, 39, 0.08);
+                box-shadow: none;
             }
 
             div[role="tab"] {
@@ -291,8 +291,8 @@ def apply_custom_style() -> None:
                 padding: 18px 28px !important;
                 flex: 1 !important;
                 text-align: center !important;
-                border: 2px solid transparent;
-                background: #e5e7eb;
+                border: 1px solid #d1d5db;
+                background: #f9fafb;
                 letter-spacing: 0.3px;
                 text-transform: uppercase;
             }
@@ -307,22 +307,22 @@ def apply_custom_style() -> None:
             div[role="tab"][aria-selected="true"] span,
             div[role="tab"][aria-selected="true"] a,
             div[role="tab"][aria-selected="true"] button {
-                color: #ffffff !important;
-                border: 2px solid #374151 !important;
-                background: linear-gradient(135deg, #374151 0%, #111827 100%) !important;
-                box-shadow: 0 6px 20px rgba(17, 24, 39, 0.24) !important;
-                font-weight: 900 !important;
-                letter-spacing: 0.8px;
+                color: #111827 !important;
+                border: 1px solid #9ca3af !important;
+                background: #f3f4f6 !important;
+                box-shadow: none !important;
+                font-weight: 800 !important;
+                letter-spacing: 0.3px;
                 text-shadow: none !important;
                 transform: none !important;
             }
 
             div[role="tab"]:hover {
                 color: #111827 !important;
-                background: #d1d5db;
-                border: 2px solid #9ca3af;
-                transform: translateY(-2px);
-                box-shadow: 0 4px 12px rgba(17, 24, 39, 0.12);
+                background: #f3f4f6;
+                border: 1px solid #9ca3af;
+                transform: none;
+                box-shadow: none;
             }
 
             /* ========== EXPANDERS ========== */
