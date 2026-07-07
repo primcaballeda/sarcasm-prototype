@@ -283,16 +283,24 @@ def apply_custom_style() -> None:
             }
 
             div[role="tab"] {
-                color: #6b7280 !important;
-                border-radius: 12px;
-                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                 font-weight: 700;
                 font-size: 16px;
                 padding: 18px 28px !important;
                 flex: 1 !important;
                 text-align: center !important;
-                border: 1px solid #d1d5db;
-                background: #f9fafb;
+                letter-spacing: 0.3px;
+                text-transform: uppercase;
+            }
+
+            div[role="tab"] {
+                font-weight: 700;
+                font-size: 16px;
+                padding: 18px 28px !important;
+                flex: 1 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                text-align: center !important;
                 letter-spacing: 0.3px;
                 text-transform: uppercase;
             }
@@ -301,26 +309,18 @@ def apply_custom_style() -> None:
             div[role="tab"] a,
             div[role="tab"] button {
                 font-weight: 700 !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                width: 100% !important;
             }
-
-            div[role="tab"][aria-selected="true"],
-            div[role="tab"][aria-selected="true"] span,
-            div[role="tab"][aria-selected="true"] a,
-            div[role="tab"][aria-selected="true"] button {
-                color: #111827 !important;
-                border: 1px solid #9ca3af !important;
-                background: #f3f4f6 !important;
-                box-shadow: none !important;
-                font-weight: 800 !important;
-                letter-spacing: 0.3px;
-                text-shadow: none !important;
                 transform: none !important;
             }
 
             div[role="tab"]:hover {
                 color: #111827 !important;
                 background: #f3f4f6;
-                border: 1px solid #9ca3af;
+                border: none;
                 transform: none;
                 box-shadow: none;
             }
