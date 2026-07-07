@@ -310,16 +310,11 @@ def apply_custom_style() -> None:
                 color: #ffffff !important;
                 border: 2px solid #7c3aed !important;
                 background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%) !important;
-                animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
                 box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4) !important;
                 font-weight: 900 !important;
-                font-size: 17px !important;
                 letter-spacing: 0.8px;
-                text-shadow: 
-                    -1px -1px 0 rgba(0, 0, 0, 0.4),
-                    1px -1px 0 rgba(0, 0, 0, 0.4),
-                    -1px 1px 0 rgba(0, 0, 0, 0.4),
-                    1px 1px 0 rgba(0, 0, 0, 0.4);
+                text-shadow: none !important;
+                transform: none !important;
             }
 
             div[role="tab"]:hover {
