@@ -241,10 +241,10 @@ def render_batch_testing_tab() -> None:
                 st.metric("Total Samples", stats["total"])
             with col2:
                 baseline_acc = stats["baseline"]["accuracy"]
-                st.metric(f"{BASELINE_MODEL_NAME} Accuracy", f"{baseline_acc}%")
+                st.metric("GloVe Accuracy", f"{baseline_acc}%")
             with col3:
                 proposed_acc = stats["proposed"]["accuracy"]
-                st.metric(f"{PROPOSED_MODEL_NAME} Accuracy", f"{proposed_acc}%")
+                st.metric("BERT Accuracy", f"{proposed_acc}%")
 
         # Gauges
         st.markdown("### Performance Summary")
@@ -284,10 +284,10 @@ def render_batch_testing_tab() -> None:
             output = {
                 "ID": row["id"],
                 "Text": row["text"][:50] + "..." if len(row["text"]) > 50 else row["text"],
-                BASELINE_MODEL_NAME: "Sarc" if row["baseline"]["predicted"] else "Not",
-                f"{BASELINE_MODEL_NAME} %": f"{row['baseline']['confidence']:.0f}%",
-                PROPOSED_MODEL_NAME: "Sarc" if row["proposed"]["predicted"] else "Not",
-                f"{PROPOSED_MODEL_NAME} %": f"{row['proposed']['confidence']:.0f}%",
+                "GloVe": "Sarc" if row["baseline"]["predicted"] else "Not",
+                "GloVe %": f"{row['baseline']['confidence']:.0f}%",
+                "BERT": "Sarc" if row["proposed"]["predicted"] else "Not",
+                "BERT %": f"{row['proposed']['confidence']:.0f}%",
             }
             if has_labels:
                 output["Actual"] = "Sarc" if row.get("label") else "Not"
@@ -318,7 +318,7 @@ def render_analytics_tab() -> None:
 - Architecture: CNN -> BiLSTM -> Attention
 - Epochs: {baseline_info.get('epochs', 'N/A')}
 - Batch Size: {baseline_info.get('batch_size', 'N/A')}
-- Optimizer: Adam 
+- Optimizer: Adam (lr={baseline_info.get('learning_rate', 'N/A')})
 - Vocab Size: {metrics.get('baseline', {}).get('dataset_info', {}).get('vocab_size', 'N/A'):,}
         """)
 
@@ -330,7 +330,7 @@ def render_analytics_tab() -> None:
 - Architecture: BERT -> CNN -> BiLSTM -> Multi-Head Attn
 - Epochs: {proposed_info.get('epochs', 'N/A')}
 - Batch Size: {proposed_info.get('batch_size', 'N/A')}
-- Optimizer: Adam 
+- Optimizer: Adam (lr={proposed_info.get('learning_rate', 'N/A')})
 - Attention Heads: {proposed_info.get('num_heads', 'N/A')}
         """)
 
@@ -359,8 +359,8 @@ def render_analytics_tab() -> None:
 
         table_data.append({
             "Metric": display_name,
-            BASELINE_MODEL_NAME: f"{baseline_val:.2f}%",
-            PROPOSED_MODEL_NAME: f"{proposed_val:.2f}%",
+            "GloVe": f"{baseline_val:.2f}%",
+            "BERT": f"{proposed_val:.2f}%",
             "Improvement": diff_str
         })
 

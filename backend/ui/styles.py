@@ -63,13 +63,13 @@ def apply_custom_style() -> None:
             }
 
             @keyframes glow {
-                0%, 100% { box-shadow: 0 6px 20px rgba(17, 24, 39, 0.16); }
-                50% { box-shadow: 0 8px 32px rgba(17, 24, 39, 0.24); }
+                0%, 100% { box-shadow: 0 6px 20px rgba(124, 58, 237, 0.35); }
+                50% { box-shadow: 0 8px 32px rgba(124, 58, 237, 0.5); }
             }
 
-            /* Neutral monochrome theme */
+            /* Modern theme - Pink, Purple, Blue with solid colors */
             .stApp {
-                background: #f6f7f8;
+                background: #f8f5fb;
                 font-family: 'Inter', sans-serif;
             }
 
@@ -87,8 +87,8 @@ def apply_custom_style() -> None:
                 padding: 50px 30px;
                 background: #ffffff;
                 border-radius: 20px;
-                border: 2px solid #d1d5db;
-                box-shadow: 0 8px 32px rgba(17, 24, 39, 0.08);
+                border: 2px solid #7c3aed;
+                box-shadow: 0 8px 32px rgba(124, 58, 237, 0.12);
                 backdrop-filter: blur(20px);
                 animation: slideInDown 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
             }
@@ -98,12 +98,12 @@ def apply_custom_style() -> None:
                 font-weight: 800;
                 letter-spacing: -0.03em;
                 font-size: 3.5rem;
-                color: #111827;
+                color: #7c3aed;
                 animation: slideInDown 1s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s backwards;
             }
 
             .subtitle {
-                color: #4b5563;
+                color: #7c3aed;
                 text-align: center;
                 margin-top: 15px;
                 margin-bottom: 0;
@@ -115,25 +115,25 @@ def apply_custom_style() -> None:
 
             /* ========== CONTAINERS & CARDS ========== */
             div[data-testid="stVerticalBlockBorderWrapper"] {
-                border: 2px solid #d1d5db;
+                border: 2px solid #e0d9f0;
                 border-radius: 16px;
                 background: #ffffff;
-                box-shadow: 0 4px 16px rgba(17, 24, 39, 0.06);
+                box-shadow: 0 4px 16px rgba(124, 58, 237, 0.08);
                 transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
                 backdrop-filter: blur(20px);
                 animation: slideInUp 0.6s ease-out;
             }
 
             div[data-testid="stVerticalBlockBorderWrapper"]:hover {
-                border-color: #9ca3af;
-                box-shadow: 0 12px 40px rgba(17, 24, 39, 0.1);
-                background: #fafafa;
+                border-color: #7c3aed;
+                box-shadow: 0 12px 40px rgba(124, 58, 237, 0.2);
+                background: #faf8ff;
                 transform: translateY(-4px);
             }
 
             /* ========== BUTTONS ========== */
             div.stButton > button {
-                background: #374151 !important;
+                background: #7c3aed !important;
                 color: #ffffff !important;
                 border: none !important;
                 border-radius: 10px !important;
@@ -141,7 +141,7 @@ def apply_custom_style() -> None:
                 letter-spacing: 0.5px;
                 padding: 14px 32px !important;
                 font-size: 15px !important;
-                box-shadow: 0 6px 20px rgba(17, 24, 39, 0.16) !important;
+                box-shadow: 0 6px 20px rgba(124, 58, 237, 0.35) !important;
                 transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
                 cursor: pointer !important;
                 text-transform: uppercase;
@@ -175,20 +175,20 @@ def apply_custom_style() -> None:
             }
 
             div.stButton > button:hover {
-                background: #4b5563 !important;
-                box-shadow: 0 8px 32px rgba(17, 24, 39, 0.22) !important;
+                background: #8b5cf6 !important;
+                box-shadow: 0 8px 32px rgba(124, 58, 237, 0.5) !important;
                 transform: translateY(-3px) scale(1.02) !important;
             }
 
             div.stButton > button:active {
                 transform: translateY(-1px) scale(0.98) !important;
-                box-shadow: 0 4px 16px rgba(17, 24, 39, 0.16) !important;
+                box-shadow: 0 4px 16px rgba(124, 58, 237, 0.35) !important;
             }
 
             /* ========== TEXT INPUTS ========== */
             div[data-testid="stTextArea"] textarea {
                 background: #ffffff !important;
-                border: 2px solid #d1d5db !important;
+                border: 2px solid #e0d9f0 !important;
                 border-radius: 10px !important;
                 color: #2d2d3d !important;
                 font-family: 'Inter', sans-serif !important;
@@ -199,21 +199,21 @@ def apply_custom_style() -> None:
             }
 
             div[data-testid="stTextArea"] textarea::placeholder {
-                color: #9ca3af !important;
+                color: #b8a8d4 !important;
             }
 
             div[data-testid="stTextArea"] textarea:focus {
-                border-color: #6b7280 !important;
-                box-shadow: 0 0 0 4px rgba(107, 114, 128, 0.15), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
-                background: #fafafa !important;
+                border-color: #7c3aed !important;
+                box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.15), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+                background: #faf8ff !important;
             }
 
             /* ========== PROGRESS BARS ========== */
             div[data-testid="stProgress"] div[role="progressbar"] > div {
-                background: #374151 !important;
+                background: #7c3aed !important;
                 border-radius: 10px !important;
                 height: 10px !important;
-                box-shadow: 0 4px 12px rgba(17, 24, 39, 0.16);
+                box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
                 animation: shimmer 2s infinite;
                 background-size: 1000px 100%;
             }
@@ -221,19 +221,35 @@ def apply_custom_style() -> None:
             /* ========== METRICS ========== */
             div[data-testid="stMetric"] {
                 background: #ffffff;
-                border: 2px solid #d1d5db;
+                border: 2px solid #e0d9f0;
                 border-radius: 12px;
                 padding: 28px;
-                box-shadow: 0 4px 16px rgba(17, 24, 39, 0.06);
+                box-shadow: 0 4px 16px rgba(124, 58, 237, 0.08);
                 backdrop-filter: blur(20px);
                 transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                 animation: slideInUp 0.6s ease-out;
             }
 
             div[data-testid="stMetric"]:hover {
-                box-shadow: 0 8px 32px rgba(17, 24, 39, 0.1);
+                box-shadow: 0 8px 32px rgba(124, 58, 237, 0.15);
                 transform: translateY(-2px);
-                border-color: #9ca3af;
+                border-color: #7c3aed;
+            }
+
+            /* ========== TABS ========== */
+            div[data-testid="stTabs"] [data-baseweb="tab-list"] {
+                gap: 0.5rem;
+            }
+
+            div[data-testid="stTabs"] [data-baseweb="tab"] {
+                flex: 1 1 0;
+                justify-content: center;
+                text-align: center;
+            }
+
+            div[data-testid="stTabs"] [data-baseweb="tab"] * {
+                width: 100%;
+                text-align: center;
             }
 
             /* ========== RESULT BADGES ========== */
@@ -270,96 +286,67 @@ def apply_custom_style() -> None:
             /* ========== TABS ========== */
             div[role="tablist"] {
                 background: #ffffff;
-                border-bottom: 2px solid #d1d5db;
+                border-bottom: 2px solid #e0d9f0;
                 padding-bottom: 0;
-                border-radius: 16px 16px 0 0;
-                display: flex !important;
-                justify-content: space-around !important;
-                width: 100% !important;
-                margin: 0 !important;
-                gap: 8px;
-                padding: 8px;
-                box-shadow: none;
+                border-radius: 12px 12px 0 0;
             }
 
             div[role="tab"] {
-                font-weight: 700;
-                font-size: 16px;
-                padding: 18px 28px !important;
-                flex: 1 !important;
-                text-align: center !important;
-                letter-spacing: 0.3px;
-                text-transform: uppercase;
+                color: #8b7a9b !important;
+                border-radius: 8px 8px 0 0;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                font-weight: 600;
+                font-size: 15px;
+                padding: 14px 24px !important;
             }
 
-            div[role="tab"] {
-                font-weight: 700;
-                font-size: 16px;
-                padding: 18px 28px !important;
-                flex: 1 !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                text-align: center !important;
-                letter-spacing: 0.3px;
-                text-transform: uppercase;
-            }
-
-            div[role="tab"] span,
-            div[role="tab"] a,
-            div[role="tab"] button {
-                font-weight: 700 !important;
-                display: inline-flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                width: 100% !important;
-            }
-                transform: none !important;
+            div[role="tab"][aria-selected="true"] {
+                color: #7c3aed !important;
+                border-bottom: 3px solid #7c3aed !important;
+                background: #faf8ff;
+                animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
             }
 
             div[role="tab"]:hover {
-                color: #111827 !important;
-                background: #f3f4f6;
-                border: none;
-                transform: none;
-                box-shadow: none;
+                color: #7c3aed !important;
+                background: #f5f0ff;
             }
 
             /* ========== EXPANDERS ========== */
             div[data-testid="stExpander"] {
-                border: 2px solid #d1d5db;
+                border: 2px solid #e0d9f0;
                 border-radius: 12px;
                 background: #ffffff;
-                box-shadow: 0 4px 16px rgba(17, 24, 39, 0.06);
+                box-shadow: 0 4px 16px rgba(124, 58, 237, 0.08);
                 transition: all 0.3s ease;
             }
 
             div[data-testid="stExpander"]:hover {
-                border-color: #9ca3af;
-                box-shadow: 0 8px 24px rgba(17, 24, 39, 0.1);
+                border-color: #7c3aed;
+                box-shadow: 0 8px 24px rgba(124, 58, 237, 0.12);
             }
 
             /* ========== CHARTS & TABLES ========== */
             div[data-testid="stDataFrame"] {
                 background: #ffffff !important;
                 border-radius: 12px !important;
-                border: 2px solid #d1d5db !important;
-                box-shadow: 0 4px 16px rgba(17, 24, 39, 0.06) !important;
+                border: 2px solid #e0d9f0 !important;
+                box-shadow: 0 4px 16px rgba(124, 58, 237, 0.08) !important;
             }
 
             /* ========== ALERTS ========== */
             div[data-testid="stAlert"] {
                 border-radius: 12px;
-                border: 2px solid #d1d5db;
+                border: 2px solid #e0d9f0;
                 background: #ffffff !important;
-                box-shadow: 0 4px 16px rgba(17, 24, 39, 0.06);
+                box-shadow: 0 4px 16px rgba(124, 58, 237, 0.08);
             }
 
             /* ========== DIVIDER ========== */
             hr {
                 border: 0;
                 height: 1.5px;
-                background: #d1d5db;
+                background: #e0d9f0;
                 margin: 36px 0 !important;
             }
 
@@ -377,7 +364,7 @@ def apply_custom_style() -> None:
             }
 
             .small-muted {
-                color: #6b7280 !important;
+                color: #8b7a9b !important;
                 font-size: 0.85rem !important;
                 font-weight: 500 !important;
             }
@@ -385,21 +372,21 @@ def apply_custom_style() -> None:
             /* ========== FILE UPLOADER ========== */
             div[data-testid="stFileUploadDropzone"] {
                 background: #ffffff !important;
-                border: 2px dashed #9ca3af !important;
+                border: 2px dashed #7c3aed !important;
                 border-radius: 12px !important;
                 transition: all 0.3s ease;
             }
 
             div[data-testid="stFileUploadDropzone"]:hover {
-                border-color: #6b7280 !important;
-                background: #fafafa !important;
-                box-shadow: 0 4px 16px rgba(17, 24, 39, 0.08);
+                border-color: #d946a6 !important;
+                background: #faf8ff !important;
+                box-shadow: 0 4px 16px rgba(124, 58, 237, 0.12);
             }
 
             /* ========== SELECTBOX & MULTISELECT ========== */
             div[data-testid="stSelectbox"] > div > div {
                 background: #ffffff !important;
-                border: 2px solid #d1d5db !important;
+                border: 2px solid #e0d9f0 !important;
                 border-radius: 10px !important;
                 color: #2d2d3d !important;
                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
@@ -407,8 +394,8 @@ def apply_custom_style() -> None:
             }
 
             div[data-testid="stSelectbox"] > div > div:focus {
-                border-color: #6b7280 !important;
-                box-shadow: 0 0 0 4px rgba(107, 114, 128, 0.15), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+                border-color: #7c3aed !important;
+                box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.15), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
             }
 
             /* ========== CHECKBOX ========== */
