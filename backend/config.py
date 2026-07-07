@@ -31,12 +31,12 @@ EXAMPLES = [
 ]
 
 # Color Palette
-COLOR_PRIMARY = "#7c3aed"
+COLOR_PRIMARY = "#374151"
 COLOR_SUCCESS = "#22c55e"
 COLOR_ERROR = "#ef4444"
 COLOR_WARNING = "#f59e0b"
-COLOR_PURPLE = "#5b21b6"
-COLOR_CYAN = "#06b6d4"
+COLOR_PURPLE = "#374151"
+COLOR_CYAN = "#6b7280"
 
 # Confusion Matrix Baseline (for reference/analytics)
 CONFUSION_MATRIX_BASELINE = {
